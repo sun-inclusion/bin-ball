@@ -24,7 +24,55 @@ body {
   gap: 14px;
 }
 
-/* 携帯ゲーム機風の外枠ベゼル（オクラたたき準拠） */
+/* プレイ中のフルスクリーン専用レイアウト（画面いっぱい表示） */
+.playing-fullscreen {
+  width: 100vw;
+  max-width: 500px;
+  height: 100dvh;
+  margin: 0 auto;
+  padding: 6px 8px 8px;
+  background-color: #1c1917;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.playing-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #292524;
+  border: 1.5px solid #b45309;
+  border-radius: 10px;
+  padding: 6px 10px;
+  color: #fef3c7;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.playing-canvas-box {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  margin: 4px 0;
+}
+
+.playing-canvas-box canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 3px solid #b45309;
+  touch-action: none;
+}
+
+/* 携帯ゲーム機風の外枠ベゼル（タイトル・リザルト画面用） */
 .console-bezel {
   background: linear-gradient(180deg, #e7e5e4 0%, #d6d3d1 100%);
   border-radius: 26px;
@@ -43,7 +91,6 @@ body {
   color: #44403c;
 }
 
-/* 内側の液晶画面枠（貧乏和風の琥珀・木目アクセント） */
 .console-screen {
   background-color: #ffffff;
   border: 4px solid #b45309;
@@ -86,7 +133,6 @@ body {
   white-space: nowrap;
 }
 
-/* プロローグ＆ビジュアルカード（オクラたたきの中央黄色カード準拠） */
 .hero-card {
   background: linear-gradient(180deg, #e0f2fe 0%, #fef9c3 65%, #fde68a 100%);
   border: 1.5px solid #f59e0b;
@@ -112,7 +158,6 @@ body {
   font-weight: 600;
 }
 
-/* 全5章アイコン一覧バー */
 .chapter-strip {
   background-color: #f5f5f4;
   border: 1px solid #e7e5e4;
@@ -139,7 +184,6 @@ body {
   line-height: 1.2;
 }
 
-/* メインボタン（オクラたたき準拠の大きくて押しやすい角丸ボタン） */
 .btn-primary {
   width: 100%;
   padding: 15px 16px;
@@ -203,7 +247,6 @@ body {
   cursor: pointer;
 }
 
-/* ゲーム機下部飾りアイコン */
 .console-bottom-deco {
   display: flex;
   justify-content: space-around;
@@ -212,7 +255,6 @@ body {
   opacity: 0.75;
 }
 
-/* 枠外：広告スペース＆シリーズリンク（オクラたたき準拠） */
 .ad-slot-box {
   background-color: #fafaf9;
   border: 1.5px dashed #d6d3d1;
