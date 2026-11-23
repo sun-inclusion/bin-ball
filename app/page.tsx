@@ -27,6 +27,7 @@ interface ShojiHole {
   y: number;
   r: number;
   seed: number;
+  cooldown: number;
 }
 
 interface Puddle {
@@ -68,35 +69,35 @@ const CHAPTER_TITLES = [
   "第5章：逆転！成金御殿",
 ];
 
-// 安全地帯（発射出口・フリッパー真上）を除外した穴の候補スポット
-const SAFE_HOLE_CANDIDATES = [
-  { x: 54, y: 155 },
-  { x: 242, y: 165 },
-  { x: 52, y: 275 },
-  { x: 244, y: 275 },
-  { x: 105, y: 315 },
-  { x: 205, y: 315 },
-  { x: 155, y: 95 },
+// 穴（軌道変化ギミック）の候補スポット
+const HOLE_CANDIDATES = [
+  { x: 65, y: 155 },
+  { x: 230, y: 165 },
+  { x: 60, y: 270 },
+  { x: 235, y: 270 },
+  { x: 148, y: 100 },
+  { x: 112, y: 295 },
+  { x: 185, y: 295 },
 ];
 
 function generateRandomHoles(chapter: number, stage: number): ShojiHole[] {
-  // 章が進むと穴の数が1〜3個に増える（1章は常に1個）
   const count = chapter === 1 ? 1 : chapter <= 3 ? 2 : 3;
-  const pool = [...SAFE_HOLE_CANDIDATES];
-  // Fisher-Yatesシャッフル
+  const pool = [...HOLE_CANDIDATES];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  const baseR = 13 + Math.min(4, stage * 0.6);
+  const baseR = 11 + Math.min(3, stage * 0.4);
   return pool.slice(0, count).map((pos, idx) => ({
-    x: pos.x + (Math.random() * 10 - 5),
-    y: pos.y + (Math.random() * 10 - 5),
+    x: pos.x + (Math.random() * 12 - 6),
+    y: pos.y + (Math.random() * 12 - 6),
     r: baseR,
     seed: 1.1 + idx * 1.7 + Math.random(),
+    cooldown: 0,
   }));
 }
 
+// 発射直後のタダ取りを防ぐため、バンパーは中段〜左寄りに配置
 function generateStageBumpers(
   chapter: number,
   stage: number
@@ -104,33 +105,33 @@ function generateStageBumpers(
   const bumpers: Omit<Bumper, "hitAnim">[] = [
     {
       id: "b1",
-      x: 108,
-      y: 132,
-      r: 23,
+      x: 92,
+      y: 145,
+      r: 22,
       type: chapter === 5 ? "koban" : "can",
-      points: chapter === 5 ? 350 : 150,
+      points: chapter === 5 ? 400 : 180,
     },
     {
       id: "b2",
-      x: 204,
-      y: 132,
-      r: 23,
+      x: 188,
+      y: 150,
+      r: 22,
       type: chapter === 5 ? "koban" : "can",
-      points: chapter === 5 ? 350 : 150,
+      points: chapter === 5 ? 400 : 180,
     },
     {
       id: "b3",
-      x: 156,
-      y: 192,
-      r: 25,
+      x: 142,
+      y: 205,
+      r: 24,
       type: chapter === 5 ? "koban" : "chawan",
-      points: chapter === 5 ? 500 : 250,
+      points: chapter === 5 ? 550 : 280,
     },
   ];
 
   if (stage >= 2 || chapter >= 2) {
-    bumpers.push({ id: "b4", x: 82, y: 228, r: 19, type: "can", points: 180 });
-    bumpers.push({ id: "b5", x: 230, y: 228, r: 19, type: "can", points: 180 });
+    bumpers.push({ id: "b4", x: 75, y: 235, r: 19, type: "can", points: 200 });
+    bumpers.push({ id: "b5", x: 215, y: 235, r: 19, type: "can", points: 200 });
   }
   return bumpers;
 }
@@ -138,7 +139,6 @@ function generateStageBumpers(
 function buildStageConfig(chapter: number, stage: number): StageConfig {
   const idx = (chapter - 1) * 5 + (stage - 1);
   const isSurvival = chapter >= 4;
-  // 遊びやすい目標スコアバランス（500ptスタート）
   const targetScore = 500 + idx * 250;
   const timeLimit = isSurvival ? 25 + (stage - 1) * 3 : 60;
 
@@ -147,28 +147,36 @@ function buildStageConfig(chapter: number, stage: number): StageConfig {
 
   const puddles: Puddle[] = [];
   if (chapter === 2 || chapter === 4) {
-    puddles.push({ x: 156, y: 246, rx: 36, ry: 20 });
-    if (stage >= 3) puddles.push({ x: 98, y: 182, rx: 26, ry: 16 });
+    puddles.push({ x: 148, y: 255, rx: 34, ry: 18 });
+    if (stage >= 3) puddles.push({ x: 92, y: 185, rx: 25, ry: 15 });
   }
 
   const collectors: DebtCollector[] = [];
   if (chapter >= 3) {
     collectors.push({
-      x: 128,
-      y: 242,
-      w: 54,
-      h: 16,
+      x: 118,
+      y: 250,
+      w: 52,
+      h: 15,
       vx: 1.1 + stage * 0.2 + (chapter - 3) * 0.3,
-      minX: 52,
-      maxX: 252,
+      minX: 48,
+      maxX: 248,
     });
   }
+
+  const stageThemeNames = [
+    "破れ障子",
+    "雨漏り障子",
+    "借金取りの格子戸",
+    "質屋のなまこ壁",
+    "黄金の成金御殿",
+  ];
 
   return {
     chapter,
     stage,
     chapterTitle: CHAPTER_TITLES[chapter - 1],
-    stageName: `${chapter}-${stage}：${chapter === 5 ? "成金御殿" : "破れ障子"}`,
+    stageName: `${chapter}-${stage}：${stageThemeNames[chapter - 1]}`,
     mode: isSurvival ? "survival" : "target",
     targetScore,
     timeLimit,
@@ -204,14 +212,14 @@ class SoundFX {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = "triangle";
-    osc.frequency.setValueAtTime(160, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(420, this.ctx.currentTime + 0.08);
-    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.09);
+    osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(520, this.ctx.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start();
-    osc.stop(this.ctx.currentTime + 0.09);
+    osc.stop(this.ctx.currentTime + 0.1);
   }
 
   playSpringTick(power: number) {
@@ -248,6 +256,23 @@ class SoundFX {
     gain.connect(this.ctx.destination);
     osc.start();
     osc.stop(this.ctx.currentTime + 0.24);
+  }
+
+  playHoleWarp() {
+    if (this.muted) return;
+    this.ensureCtx();
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(420, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(190, this.ctx.currentTime + 0.14);
+    gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.15);
   }
 
   playBumper(type: "can" | "chawan" | "koban") {
@@ -321,7 +346,7 @@ class SoundFX {
 const sfx = new SoundFX();
 
 const W = 340;
-const H = 500;
+const H = 540;
 const LANE_X = 296;
 const BALL_R = 8.5;
 const GRAVITY = 0.145;
@@ -350,7 +375,7 @@ export default function BinBallPage() {
   >(new Map());
 
   const gameStateRef = useRef({
-    ball: { x: 316, y: 416, vx: 0, vy: 0, inLane: true, active: false },
+    ball: { x: 316, y: 446, vx: 0, vy: 0, inLane: true, active: false },
     plungerPower: 0,
     springRecoilAnim: 0,
     charging: false,
@@ -392,7 +417,7 @@ export default function BinBallPage() {
       const cfg = buildStageConfig(ch, st);
       const gs = gameStateRef.current;
       gs.config = cfg;
-      gs.ball = { x: 316, y: 416, vx: 0, vy: 0, inLane: true, active: false };
+      gs.ball = { x: 316, y: 446, vx: 0, vy: 0, inLane: true, active: false };
       gs.plungerPower = 0;
       gs.springRecoilAnim = 0;
       gs.charging = false;
@@ -420,12 +445,13 @@ export default function BinBallPage() {
     []
   );
 
+  // 発射実行（バンパー群を飛び越えて外周から下部フリッパーへ落ちやすい軌道に調整）
   const releasePlunger = useCallback(() => {
     const gs = gameStateRef.current;
     if (gs.ball.inLane && !gs.ball.active && gs.plungerPower > 0.12) {
       const p = Math.max(0.15, gs.plungerPower);
-      gs.ball.vy = -(10.8 + p * 9.5);
-      gs.ball.vx = -0.25;
+      gs.ball.vy = -(11.5 + p * 9.5);
+      gs.ball.vx = -0.35;
       gs.ball.active = true;
       gs.springRecoilAnim = 1.0;
       sfx.playLaunch(p);
@@ -461,7 +487,7 @@ export default function BinBallPage() {
     const { x, y } = getCanvasCoords(e);
     const gs = gameStateRef.current;
 
-    if (gs.ball.inLane && !gs.ball.active && x >= 265 && y >= 310) {
+    if (gs.ball.inLane && !gs.ball.active && x >= 265 && y >= 330) {
       activePointersRef.current.set(e.pointerId, {
         role: "plunger",
         startY: y,
@@ -472,6 +498,7 @@ export default function BinBallPage() {
       return;
     }
 
+    // 盤面の左半分・右半分のどこをタップしても即フリッパー反応
     if (x < LANE_X / 2) {
       activePointersRef.current.set(e.pointerId, {
         role: "left",
@@ -508,7 +535,7 @@ export default function BinBallPage() {
       gameStateRef.current.ball.inLane &&
       !gameStateRef.current.ball.active
     ) {
-      gameStateRef.current.ball.y = 416 + power * 46;
+      gameStateRef.current.ball.y = 446 + power * 48;
     }
   };
 
@@ -523,7 +550,7 @@ export default function BinBallPage() {
         gameStateRef.current.ball.inLane &&
         !gameStateRef.current.ball.active
       ) {
-        gameStateRef.current.ball.y = 416;
+        gameStateRef.current.ball.y = 446;
       }
     } else {
       syncFlipperPointerState();
@@ -587,10 +614,14 @@ export default function BinBallPage() {
         gs.springRecoilAnim = Math.max(0, gs.springRecoilAnim - 0.06);
       }
 
-      const leftTarget = gs.leftPressed ? -0.48 : 0.42;
-      const rightTarget = gs.rightPressed ? 0.48 : -0.42;
-      gs.leftFlipperAngle += (leftTarget - gs.leftFlipperAngle) * 0.42;
-      gs.rightFlipperAngle += (rightTarget - gs.rightFlipperAngle) * 0.42;
+      gs.holes.forEach((h) => {
+        if (h.cooldown > 0) h.cooldown -= 1;
+      });
+
+      const leftTarget = gs.leftPressed ? -0.56 : 0.42;
+      const rightTarget = gs.rightPressed ? 0.56 : -0.42;
+      gs.leftFlipperAngle += (leftTarget - gs.leftFlipperAngle) * 0.48;
+      gs.rightFlipperAngle += (rightTarget - gs.rightFlipperAngle) * 0.48;
 
       gs.collectors.forEach((c) => {
         c.x += c.vx;
@@ -647,8 +678,8 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.8;
           }
 
-          // 右上カーブガイド（\ 向き）
-          checkSlantWall(255, 16, 332, 85, 0.92);
+          // 右上カーブガイド（\ 向き：発射後は左外周へ大きく送り出してタダ取りを抑制）
+          checkSlantWall(255, 16, 332, 85, 0.96);
 
           if (b.inLane) {
             if (b.x + BALL_R > W - 12) {
@@ -661,6 +692,8 @@ export default function BinBallPage() {
             }
             if (b.x < LANE_X - 8) {
               b.inLane = false;
+              // 発射直後は左壁沿いの落下ルートへ流し、フリッパー打ち返し勝負にする
+              b.vx = Math.min(b.vx, -5.2);
             }
           } else {
             if (b.x + BALL_R > LANE_X) {
@@ -670,12 +703,14 @@ export default function BinBallPage() {
           }
 
           if (!b.inLane) {
-            checkSlantWall(16, 355, 88, 415, 0.88);
-            checkSlantWall(LANE_X, 355, 224, 415, 0.88);
+            // 下部ガイド壁（フリッパー位置を少し上げてボタンを大きく確保）
+            checkSlantWall(16, 375, 86, 435, 0.88);
+            checkSlantWall(LANE_X, 375, 226, 435, 0.88);
 
-            const lPivotX = 90;
-            const lPivotY = 417;
-            const fLen = 50;
+            // 左右フリッパー当たり判定（打ち返しパワーを大幅強化！）
+            const lPivotX = 88;
+            const lPivotY = 437;
+            const fLen = 54;
             const lx2 = lPivotX + Math.cos(gs.leftFlipperAngle) * fLen;
             const ly2 = lPivotY + Math.sin(gs.leftFlipperAngle) * fLen;
             checkSlantWall(
@@ -683,18 +718,19 @@ export default function BinBallPage() {
               lPivotY,
               lx2,
               ly2,
-              gs.leftPressed ? 1.35 : 0.8
+              gs.leftPressed ? 1.75 : 0.82
             );
             if (
               gs.leftPressed &&
               Math.hypot(b.x - (lPivotX + lx2) / 2, b.y - (lPivotY + ly2) / 2) <
-                34
+                38
             ) {
-              b.vy = Math.min(b.vy, -6.8);
+              b.vy = -11.2;
+              b.vx = (b.x - lPivotX) * 0.14 + 1.5;
             }
 
-            const rPivotX = 222;
-            const rPivotY = 417;
+            const rPivotX = 224;
+            const rPivotY = 437;
             const rx2 = rPivotX - Math.cos(-gs.rightFlipperAngle) * fLen;
             const ry2 = rPivotY + Math.sin(-gs.rightFlipperAngle) * fLen;
             checkSlantWall(
@@ -702,14 +738,15 @@ export default function BinBallPage() {
               rPivotY,
               rx2,
               ry2,
-              gs.rightPressed ? 1.35 : 0.8
+              gs.rightPressed ? 1.75 : 0.82
             );
             if (
               gs.rightPressed &&
               Math.hypot(b.x - (rPivotX + rx2) / 2, b.y - (rPivotY + ry2) / 2) <
-                34
+                38
             ) {
-              b.vy = Math.min(b.vy, -6.8);
+              b.vy = -11.2;
+              b.vx = (b.x - rPivotX) * 0.14 - 1.5;
             }
           }
 
@@ -726,9 +763,9 @@ export default function BinBallPage() {
               const ny = dy / dist;
               b.x = bmp.x + nx * (BALL_R + bmp.r + 1);
               b.y = bmp.y + ny * (BALL_R + bmp.r + 1);
-              const bounceSpeed = bmp.type === "chawan" ? 6.8 : 5.8;
+              const bounceSpeed = bmp.type === "chawan" ? 7.2 : 6.2;
               b.vx = nx * bounceSpeed;
-              b.vy = ny * bounceSpeed - 0.9;
+              b.vy = ny * bounceSpeed - 1.0;
 
               sfx.playBumper(bmp.type);
               gs.score += bmp.points;
@@ -739,7 +776,6 @@ export default function BinBallPage() {
 
           if (hitBumperIndex !== -1) {
             gs.bumpers.splice(hitBumperIndex, 1);
-            // 全部消したらボーナス加算＆再補充
             if (gs.bumpers.length === 0) {
               gs.score += 500;
               sfx.playClear();
@@ -767,6 +803,21 @@ export default function BinBallPage() {
             }
           }
 
+          // 破れ穴ギミック（即死廃止 ➔ 引っかかって軌道がイレギュラーに曲がる！）
+          if (!b.inLane) {
+            for (const h of gs.holes) {
+              if (h.cooldown <= 0 && Math.hypot(b.x - h.x, b.y - h.y) < h.r + 3) {
+                h.cooldown = 35;
+                sfx.playHoleWarp();
+                const randAngle = (Math.random() - 0.5) * Math.PI * 1.4;
+                const spd = Math.max(4.5, Math.hypot(b.vx, b.vy) * 0.85);
+                b.vx = Math.sin(randAngle) * spd;
+                b.vy = Math.cos(randAngle) * spd;
+                break;
+              }
+            }
+          }
+
           gs.collectors.forEach((c) => {
             if (
               b.x + BALL_R > c.x &&
@@ -791,7 +842,7 @@ export default function BinBallPage() {
           });
 
           if (!b.inLane) {
-            const maxSpd = 12.0;
+            const maxSpd = 13.0;
             const curSpd = Math.hypot(b.vx, b.vy);
             if (curSpd > maxSpd) {
               b.vx = (b.vx / curSpd) * maxSpd;
@@ -800,22 +851,10 @@ export default function BinBallPage() {
           }
         }
 
-        let lostReason = "";
-        if (!b.inLane) {
-          for (const h of gs.holes) {
-            if (Math.hypot(b.x - h.x, b.y - h.y) < h.r - 2) {
-              lostReason = "破れ障子の穴に落ちた！";
-              break;
-            }
-          }
-        }
-        if (b.y > H + 12) {
-          lostReason = "溝に落ちた！";
-        }
-
-        if (lostReason && !gs.stageFinished) {
+        // 下部溝落下のみアウト判定
+        if (b.y > H + 12 && !gs.stageFinished) {
           sfx.playLost();
-          showToast(lostReason);
+          showToast("溝に落ちた！");
           gs.ballsLeft -= 1;
           setBallsLeft(gs.ballsLeft);
 
@@ -825,7 +864,7 @@ export default function BinBallPage() {
           } else {
             gs.ball = {
               x: 316,
-              y: 416,
+              y: 446,
               vx: 0,
               vy: 0,
               inLane: true,
@@ -835,72 +874,79 @@ export default function BinBallPage() {
         }
       }
 
-      // --- 描画処理 ---
+      // --- 描画処理（全5章ごとの盤面テーマ進化） ---
       ctx.clearRect(0, 0, W, H);
 
+      // 章ごとの背景デザイン切り替え
       const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-      if (chapter === 5) {
-        bgGrad.addColorStop(0, "#fef9c3");
-        bgGrad.addColorStop(1, "#fde68a");
-      } else {
+      if (chapter === 1) {
+        // 第1章：隙間風の四畳半（日焼けした古障子）
         bgGrad.addColorStop(0, "#faf6eb");
-        bgGrad.addColorStop(0.5, "#f2e8cf");
         bgGrad.addColorStop(1, "#e6d5b8");
+      } else if (chapter === 2) {
+        // 第2章：雨漏りボロアパート（湿ってカビ・シミのある障子）
+        bgGrad.addColorStop(0, "#e2e8f0");
+        bgGrad.addColorStop(1, "#cbd5e1");
+      } else if (chapter === 3) {
+        // 第3章：借金取りの玄関先（重厚な木の格子戸）
+        bgGrad.addColorStop(0, "#78350f");
+        bgGrad.addColorStop(1, "#451a03");
+      } else if (chapter === 4) {
+        // 第4章：質屋の蔵の奥（白漆喰となまこ壁）
+        bgGrad.addColorStop(0, "#f8fafc");
+        bgGrad.addColorStop(1, "#e2e8f0");
+      } else {
+        // 第5章：逆転！成金御殿（黄金の金箔ふすま）
+        bgGrad.addColorStop(0, "#fef08a");
+        bgGrad.addColorStop(0.5, "#facc15");
+        bgGrad.addColorStop(1, "#eab308");
       }
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, W, H);
 
-      // 和紙繊維模様
-      ctx.strokeStyle = "rgba(180, 140, 90, 0.16)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 45; i++) {
-        const fx = ((i * 73) % (LANE_X - 30)) + 20;
-        const fy = ((i * 137) % (H - 40)) + 20;
-        ctx.beginPath();
-        ctx.moveTo(fx, fy);
-        ctx.quadraticCurveTo(fx + 12, fy - 4, fx + 22, fy + 3);
-        ctx.stroke();
-      }
-
-      // 障子の組子
-      const drawWoodBar = (x1: number, y1: number, x2: number, y2: number) => {
-        ctx.strokeStyle = "rgba(69, 26, 3, 0.24)";
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.moveTo(x1 + 2, y1 + 2);
-        ctx.lineTo(x2 + 2, y2 + 2);
-        ctx.stroke();
-
-        ctx.strokeStyle = chapter === 5 ? "#b45309" : "#854d0e";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        ctx.strokeStyle = chapter === 5 ? "#f59e0b" : "#ca8a04";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x1 - 1, y1 - 1);
-        ctx.lineTo(x2 - 1, y2 - 1);
-        ctx.stroke();
-      };
-
-      for (let gx = 62; gx < LANE_X; gx += 58) {
-        drawWoodBar(gx, 16, gx, H - 16);
-      }
-      for (let gy = 85; gy < H; gy += 74) {
-        drawWoodBar(16, gy, LANE_X, gy);
+      // 章ごとの背景模様・格子描画
+      if (chapter === 4) {
+        // 質屋の蔵：なまこ壁のダイヤ格子模様
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 2;
+        for (let gx = 40; gx < LANE_X; gx += 48) {
+          for (let gy = 50; gy < H - 80; gy += 48) {
+            ctx.beginPath();
+            ctx.moveTo(gx, gy - 18);
+            ctx.lineTo(gx + 18, gy);
+            ctx.lineTo(gx, gy + 18);
+            ctx.lineTo(gx - 18, gy);
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+      } else {
+        // 障子・格子戸・金屏風の縦横桟
+        const barColor =
+          chapter === 3
+            ? "#292524"
+            : chapter === 5
+            ? "#b45309"
+            : "#854d0e";
+        ctx.strokeStyle = barColor;
+        ctx.lineWidth = chapter === 3 ? 6 : 4;
+        for (let gx = 62; gx < LANE_X; gx += 58) {
+          ctx.beginPath();
+          ctx.moveTo(gx, 16);
+          ctx.lineTo(gx, H - 16);
+          ctx.stroke();
+        }
+        for (let gy = 85; gy < H; gy += 74) {
+          ctx.beginPath();
+          ctx.moveTo(16, gy);
+          ctx.lineTo(LANE_X, gy);
+          ctx.stroke();
+        }
       }
 
       // 雨漏り水たまり
       gs.puddles.forEach((p) => {
-        ctx.fillStyle = "rgba(180, 150, 100, 0.25)";
-        ctx.beginPath();
-        ctx.ellipse(p.x, p.y, p.rx + 6, p.ry + 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "rgba(56, 189, 248, 0.38)";
+        ctx.fillStyle = "rgba(56, 189, 248, 0.42)";
         ctx.beginPath();
         ctx.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -909,15 +955,14 @@ export default function BinBallPage() {
         ctx.stroke();
       });
 
-      // 破れ障子の穴
+      // 破れ穴ギミック（軌道変化トラップ）
       gs.holes.forEach((h) => {
-        const spikes = 12;
+        const spikes = 10;
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
         for (let i = 0; i < spikes * 2; i++) {
           const rad = (i * Math.PI) / spikes + h.seed;
-          const jitter = Math.sin(i * 3.1 + h.seed) * 4;
-          const r = i % 2 === 0 ? h.r + 7 + jitter : h.r + 1;
+          const r = i % 2 === 0 ? h.r + 5 : h.r + 1;
           const px = h.x + Math.cos(rad) * r;
           const py = h.y + Math.sin(rad) * r;
           if (i === 0) ctx.moveTo(px, py);
@@ -925,31 +970,19 @@ export default function BinBallPage() {
         }
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = "#d6c7b2";
-        ctx.lineWidth = 1;
-        ctx.stroke();
 
-        ctx.fillStyle = "#1c1917";
+        ctx.fillStyle = h.cooldown > 0 ? "#f59e0b" : "#334155";
         ctx.beginPath();
-        for (let i = 0; i < spikes * 2; i++) {
-          const rad = (i * Math.PI) / spikes + h.seed;
-          const jitter = Math.sin(i * 3.1 + h.seed) * 2.5;
-          const r = i % 2 === 0 ? h.r + 2 + jitter : h.r - 3;
-          const px = h.x + Math.cos(rad) * r;
-          const py = h.y + Math.sin(rad) * r;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
+        ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.fillStyle = "#ffffff";
         ctx.font = "bold 9px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("穴", h.x, h.y + 3);
+        ctx.fillText("🌀", h.x, h.y + 3);
       });
 
-      // クッキリした左右フリッパー操作ボタン領域
+      // 大型化した左右フリッパー操作ボタン領域（盤面下部いっぱいに配置）
       const drawTouchPad = (
         x: number,
         y: number,
@@ -959,25 +992,25 @@ export default function BinBallPage() {
         pressed: boolean
       ) => {
         ctx.save();
-        ctx.fillStyle = pressed ? "#f59e0b" : "rgba(28, 25, 23, 0.85)";
-        ctx.strokeStyle = pressed ? "#fef08a" : "#d97706";
-        ctx.lineWidth = 2.5;
+        ctx.fillStyle = pressed ? "#f59e0b" : "rgba(28, 25, 23, 0.92)";
+        ctx.strokeStyle = pressed ? "#fef08a" : "#fbbf24";
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.roundRect(x, y + (pressed ? 2 : 0), w, h, 10);
+        ctx.roundRect(x, y + (pressed ? 3 : 0), w, h, 12);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = pressed ? "#1c1917" : "#fbbf24";
-        ctx.font = "bold 12px sans-serif";
+        ctx.fillStyle = pressed ? "#1c1917" : "#fef08a";
+        ctx.font = "bold 14px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(label, x + w / 2, y + h / 2 + 4 + (pressed ? 2 : 0));
+        ctx.fillText(label, x + w / 2, y + h / 2 + 5 + (pressed ? 3 : 0));
         ctx.restore();
       };
 
-      drawTouchPad(20, 444, 130, 40, "◀ 左フリッパー", gs.leftPressed);
-      drawTouchPad(160, 444, 130, 40, "右フリッパー ▶", gs.rightPressed);
+      drawTouchPad(16, 466, 134, 58, "◀ 左フリッパー", gs.leftPressed);
+      drawTouchPad(158, 466, 134, 58, "右フリッパー ▶", gs.rightPressed);
 
-      // 外枠・レーン壁・右上カーブガイド（\ 向き）
+      // 外枠・レーン壁・右上カーブガイド
       ctx.strokeStyle = "#451a03";
       ctx.lineWidth = 8;
       ctx.strokeRect(12, 12, W - 24, H - 16);
@@ -994,10 +1027,10 @@ export default function BinBallPage() {
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(16, 355);
-      ctx.lineTo(88, 415);
-      ctx.moveTo(LANE_X, 355);
-      ctx.lineTo(224, 415);
+      ctx.moveTo(16, 375);
+      ctx.lineTo(86, 435);
+      ctx.moveTo(LANE_X, 375);
+      ctx.lineTo(226, 435);
       ctx.stroke();
 
       // バンパー描画
@@ -1016,7 +1049,7 @@ export default function BinBallPage() {
           ctx.lineWidth = 3;
           ctx.stroke();
           ctx.fillStyle = "#1e293b";
-          ctx.font = "bold 11px sans-serif";
+          ctx.font = "bold 12px sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("缶", 0, 4);
         } else if (bmp.type === "chawan") {
@@ -1028,11 +1061,11 @@ export default function BinBallPage() {
           ctx.lineWidth = 3;
           ctx.stroke();
           ctx.fillStyle = "#0c4a6e";
-          ctx.font = "bold 11px sans-serif";
+          ctx.font = "bold 12px sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("茶碗", 0, 4);
         } else {
-          ctx.fillStyle = "#facc15";
+          ctx.fillStyle = "#fef08a";
           ctx.beginPath();
           ctx.ellipse(0, 0, bmp.r * 0.85, bmp.r * 1.1, 0, 0, Math.PI * 2);
           ctx.fill();
@@ -1040,7 +1073,7 @@ export default function BinBallPage() {
           ctx.lineWidth = 3;
           ctx.stroke();
           ctx.fillStyle = "#713f12";
-          ctx.font = "bold 11px sans-serif";
+          ctx.font = "bold 12px sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("小判", 0, 4);
         }
@@ -1054,7 +1087,7 @@ export default function BinBallPage() {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("借金取り", c.x + c.w / 2, c.y + 12);
+        ctx.fillText("借金取り", c.x + c.w / 2, c.y + 11);
       });
 
       // 左右フリッパー
@@ -1071,33 +1104,33 @@ export default function BinBallPage() {
         ctx.strokeStyle = "#451a03";
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.roundRect(-4, -6, 54, 12, 6);
+        ctx.roundRect(-4, -6, 56, 12, 6);
         ctx.fill();
         ctx.stroke();
         ctx.restore();
       };
-      drawFlipper(90, 417, gs.leftFlipperAngle, false);
-      drawFlipper(222, 417, gs.rightFlipperAngle, true);
+      drawFlipper(88, 437, gs.leftFlipperAngle, false);
+      drawFlipper(224, 437, gs.rightFlipperAngle, true);
 
       // リアルな発射バネ
       const recoilOffset =
         gs.springRecoilAnim > 0
           ? Math.sin(gs.springRecoilAnim * Math.PI * 6) * 14 * gs.springRecoilAnim
           : 0;
-      const springTop = 426 + gs.plungerPower * 46 - recoilOffset;
+      const springTop = 456 + gs.plungerPower * 48 - recoilOffset;
 
       ctx.strokeStyle = "#64748b";
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(316, springTop);
-      ctx.lineTo(316, 488);
+      ctx.lineTo(316, 526);
       ctx.stroke();
 
       ctx.strokeStyle = "#dc2626";
       ctx.lineWidth = 3;
       ctx.beginPath();
       const coils = 7;
-      const springHeight = Math.max(8, 488 - springTop);
+      const springHeight = Math.max(8, 526 - springTop);
       for (let i = 0; i <= coils; i++) {
         const sy = springTop + (springHeight / coils) * i;
         const sx = i % 2 === 0 ? 304 : 328;
@@ -1115,8 +1148,8 @@ export default function BinBallPage() {
       ctx.stroke();
 
       if (gs.charging && gs.plungerPower > 0) {
-        const gaugeH = 70;
-        const gaugeY = 395;
+        const gaugeH = 74;
+        const gaugeY = 420;
         ctx.fillStyle = "rgba(28, 25, 23, 0.85)";
         ctx.beginPath();
         ctx.roundRect(280, gaugeY, 10, gaugeH, 4);
@@ -1136,14 +1169,14 @@ export default function BinBallPage() {
 
       if (b.inLane && !b.active && !gs.charging) {
         const pulse = Math.sin(Date.now() / 180) * 3;
-        ctx.fillStyle = "rgba(220, 38, 38, 0.92)";
+        ctx.fillStyle = "rgba(220, 38, 38, 0.94)";
         ctx.beginPath();
-        ctx.roundRect(232, 368 + pulse, 96, 26, 8);
+        ctx.roundRect(230, 396 + pulse, 98, 28, 8);
         ctx.fill();
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("↓ 引いて離す", 280, 385 + pulse);
+        ctx.fillText("↓ 引いて離す", 279, 414 + pulse);
       }
 
       // ビー玉描画
@@ -1180,11 +1213,99 @@ export default function BinBallPage() {
 
   const currentCfg = buildStageConfig(chapter, stage);
 
+  // --- プレイ中はスマホ画面いっぱいのフルスクリーン表示 ---
+  if (phase === "playing") {
+    return (
+      <div className="playing-fullscreen">
+        <div className="playing-hud">
+          <span>{currentCfg.stageName}</span>
+          <span style={{ color: "#fbbf24" }}>
+            {score} / {currentCfg.targetScore}pt
+          </span>
+          <span>{"🔵".repeat(Math.max(0, ballsLeft))}</span>
+          <span style={{ color: "#fb7185" }}>
+            {isEndless ? "∞" : `${timeLeft}s`}
+          </span>
+          <button
+            onClick={toggleMute}
+            style={{
+              background: "#44403c",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              padding: "3px 7px",
+              fontSize: "11px",
+              fontWeight: 800,
+            }}
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
+        </div>
+
+        {toastMsg && (
+          <div
+            style={{
+              position: "fixed",
+              top: "46px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 50,
+              backgroundColor: "#e11d48",
+              color: "#fff",
+              padding: "6px 14px",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 800,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {toastMsg}
+          </div>
+        )}
+
+        {isAdmin && (
+          <button
+            onClick={() => {
+              gameStateRef.current.stageFinished = true;
+              sfx.playClear();
+              handleStageClearSuccess();
+            }}
+            style={{
+              width: "100%",
+              padding: "5px",
+              marginTop: "4px",
+              backgroundColor: "#e11d48",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "11px",
+              fontWeight: 800,
+              flexShrink: 0,
+            }}
+          >
+            [管理者] このステージを強制クリア
+          </button>
+        )}
+
+        <div className="playing-canvas-box">
+          <canvas
+            ref={canvasRef}
+            width={W}
+            height={H}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={handleCanvasPointerUp}
+            onPointerCancel={handleCanvasPointerUp}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // --- タイトル・イントロ・リザルト画面（ゲーム機ベゼルUI） ---
   return (
     <div className="page-wrap">
-      {/* 携帯ゲーム機風フレーム */}
       <div className="console-bezel">
-        {/* 上部ステータスバー */}
         <div className="console-top-bar">
           <span>
             {currentCfg.chapterTitle}（{currentCfg.mode === "target" ? "達成で即クリア！" : "サバイバル！"}）
@@ -1192,19 +1313,13 @@ export default function BinBallPage() {
           <span>🥫🍚💼💰</span>
         </div>
 
-        {/* 内側スクリーン枠 */}
         <div className="console-screen">
-          {/* タイトル＆ステージバッジヘッダー */}
           <div className="screen-header">
             <div className="game-title-row">
               <span style={{ fontSize: "24px" }}>🏮</span>
               <h1 className="game-title">びんぼ～る</h1>
             </div>
-            <span className="stage-badge">
-              {phase === "playing"
-                ? `${score} / ${currentCfg.targetScore}pt`
-                : currentCfg.stageName}
-            </span>
+            <span className="stage-badge">{currentCfg.stageName}</span>
           </div>
 
           {toastMsg && (
@@ -1223,7 +1338,6 @@ export default function BinBallPage() {
             </div>
           )}
 
-          {/* --- タイトル画面 --- */}
           {phase === "title" && (
             <>
               <div className="hero-card">
@@ -1249,7 +1363,7 @@ export default function BinBallPage() {
                   />
                   <polygon
                     points="90,38 104,34 99,49 109,59 93,63 83,56 76,43"
-                    fill="#1c1917"
+                    fill="#334155"
                   />
                   <circle cx="42" cy="48" r="10" fill="#38bdf8" stroke="#0f172a" strokeWidth="2" />
                   <circle cx="39" cy="45" r="3" fill="#ffffff" />
@@ -1259,9 +1373,7 @@ export default function BinBallPage() {
                   📖 プロローグ 〜貧乏からの大逆転〜
                 </div>
                 <p className="prologue-text">
-                  家賃滞納で残ったのは破れ障子とビー玉だけ！
-                  <br />
-                  破れ穴を避けて空き缶・茶碗に玉を弾き飛ばし、
+                  破れ障子の四畳半から雨漏りアパート、借金取り、質屋の蔵を経て、
                   <br />
                   目指せ一攫千金の成金御殿！
                 </p>
@@ -1384,7 +1496,6 @@ export default function BinBallPage() {
             </>
           )}
 
-          {/* --- ステージ開始前イントロ --- */}
           {phase === "stage_intro" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
               <div className="hero-card">
@@ -1412,92 +1523,6 @@ export default function BinBallPage() {
             </div>
           )}
 
-          {/* --- ゲームプレイ画面 --- */}
-          {phase === "playing" && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-              <div
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  backgroundColor: "#fef3c7",
-                  padding: "6px 10px",
-                  borderRadius: "10px",
-                  border: "1px solid #f59e0b",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                }}
-              >
-                <span>残り玉：{"🔵".repeat(Math.max(0, ballsLeft))}</span>
-                <span style={{ color: "#e11d48" }}>
-                  残り時間：{isEndless ? "∞" : `${timeLeft}秒`}
-                </span>
-                <button
-                  onClick={toggleMute}
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #d6d3d1",
-                    borderRadius: "6px",
-                    padding: "2px 6px",
-                    fontSize: "11px",
-                    fontWeight: 800,
-                  }}
-                >
-                  {muted ? "🔇" : "🔊"}
-                </button>
-              </div>
-
-              {isAdmin && (
-                <button
-                  onClick={() => {
-                    gameStateRef.current.stageFinished = true;
-                    sfx.playClear();
-                    handleStageClearSuccess();
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "6px",
-                    backgroundColor: "#e11d48",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontSize: "11px",
-                    fontWeight: 800,
-                  }}
-                >
-                  [管理者] このステージを強制クリア
-                </button>
-              )}
-
-              <div
-                style={{
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  border: "3px solid #78350f",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                  touchAction: "none",
-                }}
-              >
-                <canvas
-                  ref={canvasRef}
-                  width={W}
-                  height={H}
-                  onPointerDown={handleCanvasPointerDown}
-                  onPointerMove={handleCanvasPointerMove}
-                  onPointerUp={handleCanvasPointerUp}
-                  onPointerCancel={handleCanvasPointerUp}
-                  style={{ display: "block", maxWidth: "100%", height: "auto", touchAction: "none" }}
-                />
-              </div>
-
-              <div style={{ fontSize: "11px", color: "#57534e", fontWeight: 700, textAlign: "center" }}>
-                右下の赤いバネを下に引っ張って発射 ／ 盤面下の左右ボタンでバー操作
-              </div>
-            </div>
-          )}
-
-          {/* --- ステージクリア --- */}
           {phase === "stage_clear" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
               <div className="hero-card">
@@ -1522,7 +1547,6 @@ export default function BinBallPage() {
             </div>
           )}
 
-          {/* --- ゲームオーバー --- */}
           {phase === "game_over" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
               <div className="hero-card">
@@ -1548,7 +1572,6 @@ export default function BinBallPage() {
             </div>
           )}
 
-          {/* --- エピローグ --- */}
           {phase === "epilogue" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
               <div className="hero-card">
@@ -1568,7 +1591,6 @@ export default function BinBallPage() {
           )}
         </div>
 
-        {/* ゲーム機下部飾りアイコン */}
         <div className="console-bottom-deco">
           <span>🏚️</span>
           <span>🥫</span>
@@ -1578,13 +1600,11 @@ export default function BinBallPage() {
         </div>
       </div>
 
-      {/* 枠外：広告スペース */}
       <div id="ad-banner-slot" className="ad-slot-box">
         <div style={{ fontWeight: 800 }}>SPONSORED LINK / 広告スペース</div>
         <div>（ここに無料広告バナーコードを配置できます）</div>
       </div>
 
-      {/* 枠外：シリーズ相互リンク */}
       <a
         href="https://okura-tataki.vercel.app/"
         target="_blank"
@@ -1595,7 +1615,6 @@ export default function BinBallPage() {
         <span style={{ color: "#15803d" }}>第1弾『オクラたたき』へ →</span>
       </a>
 
-      {/* フッターリンク */}
       <div className="footer-links">
         <Link href="/guide">遊び方・図鑑</Link>
         <Link href="/privacy">運営者情報・プライバシーポリシー</Link>
