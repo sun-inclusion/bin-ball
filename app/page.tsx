@@ -75,7 +75,6 @@ function buildStageConfig(chapter: number, stage: number): StageConfig {
   const targetScore = 800 + idx * 350;
   const timeLimit = isSurvival ? 25 + (stage - 1) * 3 : 60;
 
-  // 基本バンパー配置
   const bumpers: Omit<Bumper, "hitAnim">[] = [
     {
       id: "b1",
@@ -122,7 +121,6 @@ function buildStageConfig(chapter: number, stage: number): StageConfig {
     });
   }
 
-  // 破れ障子の穴
   const holes: ShojiHole[] = [];
   if (chapter === 1) {
     holes.push({ x: 160, y: 295, r: 15 + stage * 1.5 });
@@ -144,7 +142,6 @@ function buildStageConfig(chapter: number, stage: number): StageConfig {
     holes.push({ x: 225, y: 290, r: 18 });
   }
 
-  // 雨漏り水たまり（2章〜）
   const puddles: Puddle[] = [];
   if (chapter === 2 || chapter === 4) {
     puddles.push({ x: 160, y: 245, rx: 38, ry: 22 });
@@ -153,7 +150,6 @@ function buildStageConfig(chapter: number, stage: number): StageConfig {
     }
   }
 
-  // 借金取りブロック（3章〜）
   const collectors: DebtCollector[] = [];
   if (chapter >= 3) {
     collectors.push({
@@ -332,7 +328,7 @@ export default function BinBallPage() {
 
   // ゲーム物理状態Ref
   const gameStateRef = useRef({
-    ball: { x: 322, y: 430, vx: 0, vy: 0, inLane: true, active: false },
+    ball: { x: 320, y: 428, vx: 0, vy: 0, inLane: true, active: false },
     plungerPower: 0,
     charging: false,
     leftFlipperAngle: 0.42,
@@ -350,7 +346,6 @@ export default function BinBallPage() {
     stageFinished: false,
   });
 
-  // 初期ロード（ハイスコア＆隠し管理者キー確認）
   useEffect(() => {
     if (typeof window === "undefined") return;
     const savedHi = localStorage.getItem("binball_highscore");
@@ -369,13 +364,12 @@ export default function BinBallPage() {
     setTimeout(() => setToastMsg(""), 1400);
   };
 
-  // ステージ初期化
   const setupStage = useCallback(
     (ch: number, st: number, endlessMode = false) => {
       const cfg = buildStageConfig(ch, st);
       const gs = gameStateRef.current;
       gs.config = cfg;
-      gs.ball = { x: 322, y: 430, vx: 0, vy: 0, inLane: true, active: false };
+      gs.ball = { x: 320, y: 428, vx: 0, vy: 0, inLane: true, active: false };
       gs.plungerPower = 0;
       gs.charging = false;
       gs.leftFlipperAngle = 0.42;
@@ -399,13 +393,13 @@ export default function BinBallPage() {
     []
   );
 
-  // 発射実行
+  // 発射実行（上端のカーブガイドまで確実に届く初速を確保）
   const releasePlunger = useCallback(() => {
     const gs = gameStateRef.current;
     if (gs.ball.inLane && !gs.ball.active) {
-      const p = Math.max(0.35, gs.plungerPower);
-      gs.ball.vy = -(13.5 + p * 7.5);
-      gs.ball.vx = -0.35;
+      const p = Math.max(0.45, gs.plungerPower);
+      gs.ball.vy = -(16.2 + p * 5.8);
+      gs.ball.vx = -0.2;
       gs.ball.active = true;
       sfx.playLaunch(p);
     }
@@ -514,7 +508,7 @@ export default function BinBallPage() {
 
       // 1. プランジャーチャージ
       if (gs.charging && b.inLane && !b.active) {
-        gs.plungerPower = Math.min(1, gs.plungerPower + 0.025);
+        gs.plungerPower = Math.min(1, gs.plungerPower + 0.03);
       }
 
       // 2. フリッパー角度更新
@@ -531,16 +525,48 @@ export default function BinBallPage() {
         }
       });
 
+      // 線分衝突ヘルパー
+      const checkSlantWall = (
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+        boost = 0.85
+      ) => {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        const t = Math.max(
+          0,
+          Math.min(1, ((b.x - x1) * dx + (b.y - y1) * dy) / lenSq)
+        );
+        const cx = x1 + t * dx;
+        const cy = y1 + t * dy;
+        const distX = b.x - cx;
+        const distY = b.y - cy;
+        const dist = Math.hypot(distX, distY);
+        if (dist < BALL_R + 3 && dist > 0.001) {
+          const nx = distX / dist;
+          const ny = distY / dist;
+          b.x = cx + nx * (BALL_R + 3);
+          b.y = cy + ny * (BALL_R + 3);
+          const dot = b.vx * nx + b.vy * ny;
+          if (dot < 0) {
+            b.vx = (b.vx - 2 * dot * nx) * boost;
+            b.vy = (b.vy - 2 * dot * ny) * boost;
+          }
+        }
+      };
+
       // 4. ボール物理演算
       if (b.active) {
-        // サブステップ分割でトンネル現象防止
-        const steps = 3;
+        const steps = 4;
         for (let s = 0; s < steps; s++) {
           b.vy += GRAVITY / steps;
           b.x += b.vx / steps;
           b.y += b.vy / steps;
 
-          // 外壁反射
+          // 外壁反射（左・上）
           if (b.x - BALL_R < 16) {
             b.x = 16 + BALL_R;
             b.vx = Math.abs(b.vx) * 0.82;
@@ -550,62 +576,33 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.82;
           }
 
-          // 右側発射レーン壁
+          // 右上カーブガイド（発射レーンから左のメイン盤面へ滑らかに送り出す）
+          checkSlantWall(332, 22, 268, 72, 0.92);
+
+          // 右側発射レーン制御（ワンウェイゲート仕様）
           if (b.inLane) {
             if (b.x + BALL_R > W - 12) {
               b.x = W - 12 - BALL_R;
               b.vx = -Math.abs(b.vx) * 0.7;
             }
-            if (b.x - BALL_R < LANE_X && b.y > 95) {
+            if (b.x - BALL_R < LANE_X && b.y > 92) {
               b.x = LANE_X + BALL_R;
               b.vx = Math.abs(b.vx) * 0.7;
             }
-            if (b.y < 85 && b.x < LANE_X) {
+            // 一度でもレーンを左へ抜けたら逆流防止ゲートを閉じる
+            if (b.x < LANE_X - 8) {
               b.inLane = false;
             }
           } else {
-            // メイン盤面右壁
+            // メイン盤面右壁（上から下まで完全に閉じる）
             if (b.x + BALL_R > LANE_X) {
               b.x = LANE_X - BALL_R;
               b.vx = -Math.abs(b.vx) * 0.82;
             }
           }
 
-          // 斜めガイド壁（下部左右の三角ガイド）
-          // 左斜め壁: (16, 370) -> (95, 425)
-          const checkSlantWall = (
-            x1: number,
-            y1: number,
-            x2: number,
-            y2: number,
-            boost = 0.85
-          ) => {
-            const dx = x2 - x1;
-            const dy = y2 - y1;
-            const lenSq = dx * dx + dy * dy;
-            const t = Math.max(
-              0,
-              Math.min(1, ((b.x - x1) * dx + (b.y - y1) * dy) / lenSq)
-            );
-            const cx = x1 + t * dx;
-            const cy = y1 + t * dy;
-            const distX = b.x - cx;
-            const distY = b.y - cy;
-            const dist = Math.hypot(distX, distY);
-            if (dist < BALL_R + 3 && dist > 0.001) {
-              const nx = distX / dist;
-              const ny = distY / dist;
-              b.x = cx + nx * (BALL_R + 3);
-              b.y = cy + ny * (BALL_R + 3);
-              const dot = b.vx * nx + b.vy * ny;
-              if (dot < 0) {
-                b.vx = (b.vx - 2 * dot * nx) * boost;
-                b.vy = (b.vy - 2 * dot * ny) * boost;
-              }
-            }
-          };
-
           if (!b.inLane) {
+            // 斜めガイド壁（下部左右の三角ガイド）
             checkSlantWall(16, 365, 92, 426, 0.9);
             checkSlantWall(LANE_X, 365, 228, 426, 0.9);
 
@@ -674,7 +671,6 @@ export default function BinBallPage() {
                 localStorage.setItem("binball_highscore", String(gs.score));
               }
 
-              // targetモードなら目標到達で即クリア
               if (
                 !isEndless &&
                 !gs.stageFinished &&
@@ -714,7 +710,7 @@ export default function BinBallPage() {
           });
 
           // 速度上限キャップ
-          const maxSpd = 15;
+          const maxSpd = 18;
           const curSpd = Math.hypot(b.vx, b.vy);
           if (curSpd > maxSpd) {
             b.vx = (b.vx / curSpd) * maxSpd;
@@ -747,8 +743,8 @@ export default function BinBallPage() {
             setPhase("game_over");
           } else {
             gs.ball = {
-              x: 322,
-              y: 430,
+              x: 320,
+              y: 428,
               vx: 0,
               vy: 0,
               inLane: true,
@@ -758,7 +754,7 @@ export default function BinBallPage() {
         }
       }
 
-      // --- 描画処理（自作SVG風のボロボロ障子デザイン） ---
+      // --- 描画処理 ---
       ctx.clearRect(0, 0, W, H);
 
       // 背景：黄ばんだ和紙
@@ -792,7 +788,7 @@ export default function BinBallPage() {
         ctx.stroke();
       });
 
-      // 破れ障子の穴（ギザギザの黒い穴）
+      // 破れ障子の穴
       gs.holes.forEach((h) => {
         ctx.fillStyle = "#1c1917";
         ctx.beginPath();
@@ -812,18 +808,24 @@ export default function BinBallPage() {
         ctx.stroke();
       });
 
-      // 外枠・レーン仕切り壁
+      // 外枠・レーン仕切り壁・右上カーブガイド
       ctx.strokeStyle = "#451a03";
       ctx.lineWidth = 8;
       ctx.strokeRect(12, 12, W - 24, H - 16);
 
       ctx.beginPath();
-      ctx.moveTo(LANE_X, 95);
+      ctx.moveTo(LANE_X, b.inLane ? 92 : 16);
       ctx.lineTo(LANE_X, H - 8);
       ctx.stroke();
 
-      // 斜めガイド壁
+      // 右上カーブガイド描画
       ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(332, 22);
+      ctx.lineTo(268, 72);
+      ctx.stroke();
+
+      // 斜めガイド壁
       ctx.beginPath();
       ctx.moveTo(16, 365);
       ctx.lineTo(92, 426);
@@ -831,7 +833,7 @@ export default function BinBallPage() {
       ctx.lineTo(228, 426);
       ctx.stroke();
 
-      // バンパー描画（空き缶・茶碗・小判）
+      // バンパー描画
       gs.bumpers.forEach((bmp) => {
         const scale = 1 + Math.max(0, bmp.hitAnim) * 0.22;
         ctx.save();
@@ -911,7 +913,7 @@ export default function BinBallPage() {
       drawFlipper(226, 428, gs.rightFlipperAngle, true);
 
       // 発射バネ（プランジャー）描画
-      const springTop = 440 + gs.plungerPower * 35;
+      const springTop = 438 + gs.plungerPower * 38;
       ctx.fillStyle = "#dc2626";
       ctx.fillRect(308, springTop, 28, 485 - springTop);
 
@@ -979,7 +981,6 @@ export default function BinBallPage() {
 
       {/* メインエリア */}
       <main className="flex-1 flex flex-col items-center justify-center p-3 relative">
-        {/* トースト通知 */}
         {toastMsg && (
           <div className="absolute top-14 z-30 px-4 py-1.5 rounded-full bg-rose-600 text-white text-xs font-bold shadow-lg animate-bounce">
             {toastMsg}
@@ -998,7 +999,6 @@ export default function BinBallPage() {
               </h1>
             </div>
 
-            {/* 自作SVGイラスト：ボロボロ障子＆ビー玉 */}
             <div className="flex justify-center">
               <svg
                 width="160"
@@ -1044,7 +1044,6 @@ export default function BinBallPage() {
               )}
             </div>
 
-            {/* すーさん専用・隠し管理者パネル */}
             {isAdmin && (
               <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-600 text-left space-y-2">
                 <div className="text-xs font-bold text-rose-300">
@@ -1146,7 +1145,6 @@ export default function BinBallPage() {
         {/* --- ゲームプレイ画面 --- */}
         {phase === "playing" && (
           <div className="w-full flex flex-col items-center space-y-2">
-            {/* ステータスバー */}
             <div className="w-full flex items-center justify-between bg-stone-800 px-3 py-1.5 rounded-xl border border-stone-700 text-xs">
               <div>
                 <div className="text-stone-400">
@@ -1175,7 +1173,6 @@ export default function BinBallPage() {
               </div>
             </div>
 
-            {/* 管理者用強制クリアボタン */}
             {isAdmin && (
               <button
                 onClick={() => {
@@ -1189,7 +1186,6 @@ export default function BinBallPage() {
               </button>
             )}
 
-            {/* ピンボール盤面 Canvas */}
             <div className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-amber-800">
               <canvas
                 ref={canvasRef}
@@ -1199,7 +1195,6 @@ export default function BinBallPage() {
               />
             </div>
 
-            {/* スマホ用タッチ操作ボタン（左右フリッパー ＆ 発射長押し） */}
             <div className="w-full grid grid-cols-3 gap-2 pt-1">
               <button
                 onPointerDown={() => {
@@ -1328,9 +1323,8 @@ export default function BinBallPage() {
         )}
       </main>
 
-      {/* フッター導線（誤タップ防止余白付き広告枠・相互リンク・シェア） */}
+      {/* フッター導線 */}
       <footer className="px-4 pt-4 pb-6 space-y-4 border-t border-stone-800 bg-stone-950">
-        {/* シェア ＆ シリーズ相互リンク */}
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={shareLine}
@@ -1348,7 +1342,6 @@ export default function BinBallPage() {
           </a>
         </div>
 
-        {/* 誤タップ防止余白付き下部広告バナー枠 */}
         <div className="pt-2">
           <div
             id="ad-banner-slot"
@@ -1358,7 +1351,6 @@ export default function BinBallPage() {
           </div>
         </div>
 
-        {/* 運営・プライバシー表記リンク */}
         <div className="flex items-center justify-center gap-4 text-[11px] text-stone-500">
           <Link href="/guide" className="hover:text-stone-300 underline">
             遊び方・図鑑
