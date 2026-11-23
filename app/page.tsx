@@ -17,7 +17,7 @@ interface Bumper {
   x: number;
   y: number;
   r: number;
-  type: "can" | "chawan" | "koban";
+  type: "can" | "chawan" | "satsutaba";
   points: number;
   hitAnim: number;
 }
@@ -105,31 +105,45 @@ function generateStageBumpers(
       id: "b1",
       x: 92,
       y: 145,
-      r: 22,
-      type: chapter === 5 ? "koban" : "can",
+      r: 23,
+      type: chapter === 5 ? "satsutaba" : "can",
       points: chapter === 5 ? 400 : 180,
     },
     {
       id: "b2",
       x: 188,
       y: 150,
-      r: 22,
-      type: chapter === 5 ? "koban" : "can",
+      r: 23,
+      type: chapter === 5 ? "satsutaba" : "can",
       points: chapter === 5 ? 400 : 180,
     },
     {
       id: "b3",
       x: 142,
       y: 205,
-      r: 24,
-      type: chapter === 5 ? "koban" : "chawan",
+      r: 25,
+      type: chapter === 5 ? "satsutaba" : "chawan",
       points: chapter === 5 ? 550 : 280,
     },
   ];
 
   if (stage >= 2 || chapter >= 2) {
-    bumpers.push({ id: "b4", x: 75, y: 235, r: 19, type: "can", points: 200 });
-    bumpers.push({ id: "b5", x: 215, y: 235, r: 19, type: "can", points: 200 });
+    bumpers.push({
+      id: "b4",
+      x: 75,
+      y: 235,
+      r: 20,
+      type: chapter === 5 ? "satsutaba" : "can",
+      points: chapter === 5 ? 450 : 200,
+    });
+    bumpers.push({
+      id: "b5",
+      x: 215,
+      y: 235,
+      r: 20,
+      type: chapter === 5 ? "satsutaba" : "can",
+      points: chapter === 5 ? 450 : 200,
+    });
   }
   return bumpers;
 }
@@ -154,8 +168,8 @@ function buildStageConfig(chapter: number, stage: number): StageConfig {
     collectors.push({
       x: 118,
       y: 250,
-      w: 52,
-      h: 15,
+      w: 56,
+      h: 20,
       vx: 1.1 + stage * 0.2 + (chapter - 3) * 0.3,
       minX: 48,
       maxX: 248,
@@ -273,7 +287,7 @@ class SoundFX {
     osc.stop(this.ctx.currentTime + 0.15);
   }
 
-  playBumper(type: "can" | "chawan" | "koban") {
+  playBumper(type: "can" | "chawan" | "satsutaba") {
     if (this.muted) return;
     this.ensureCtx();
     if (!this.ctx) return;
@@ -288,9 +302,10 @@ class SoundFX {
       osc.frequency.setValueAtTime(1280, this.ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(980, this.ctx.currentTime + 0.16);
     } else {
+      // 札束の「バサッ・チャリン！」感
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-      osc.frequency.setValueAtTime(1320, this.ctx.currentTime + 0.06);
+      osc.frequency.setValueAtTime(920, this.ctx.currentTime);
+      osc.frequency.setValueAtTime(1380, this.ctx.currentTime + 0.06);
     }
     gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.16);
@@ -348,6 +363,137 @@ const H = 540;
 const LANE_X = 296;
 const BALL_R = 8.5;
 const GRAVITY = 0.145;
+
+// --- SVG主人公イラストコンポーネント（タイトル・クリア・ゲームオーバー用） ---
+function ProtagonistIllustration({
+  mood,
+}: {
+  mood: "poor" | "rich" | "panic";
+}) {
+  return (
+    <svg
+      width="196"
+      height="104"
+      viewBox="0 0 196 104"
+      style={{
+        borderRadius: "12px",
+        border: "3px solid #78350f",
+        backgroundColor: mood === "rich" ? "#fef08a" : "#faf6eb",
+      }}
+    >
+      {/* 背景の障子格子 or 札束舞い散り */}
+      {mood !== "rich" ? (
+        <>
+          <line x1="65" y1="0" x2="65" y2="104" stroke="#854d0e" strokeWidth="2.5" />
+          <line x1="130" y1="0" x2="130" y2="104" stroke="#854d0e" strokeWidth="2.5" />
+          <line x1="0" y1="35" x2="196" y2="35" stroke="#854d0e" strokeWidth="2.5" />
+          <line x1="0" y1="70" x2="196" y2="70" stroke="#854d0e" strokeWidth="2.5" />
+          {/* 破れ穴 */}
+          <polygon
+            points="158,28 174,23 169,41 180,52 162,56 151,48 144,34"
+            fill="#334155"
+          />
+        </>
+      ) : (
+        <>
+          {/* 成金背景の舞い散る一万円札 */}
+          <g transform="translate(20,16) rotate(-15)">
+            <rect width="26" height="14" rx="2" fill="#dcfce7" stroke="#15803d" strokeWidth="1.5" />
+            <rect x="10" y="0" width="5" height="14" fill="#fef08a" />
+          </g>
+          <g transform="translate(152,20) rotate(18)">
+            <rect width="26" height="14" rx="2" fill="#dcfce7" stroke="#15803d" strokeWidth="1.5" />
+            <rect x="10" y="0" width="5" height="14" fill="#fef08a" />
+          </g>
+          <g transform="translate(146,66) rotate(-10)">
+            <rect width="28" height="15" rx="2" fill="#dcfce7" stroke="#15803d" strokeWidth="1.5" />
+            <rect x="11" y="0" width="5" height="15" fill="#fef08a" />
+          </g>
+        </>
+      )}
+
+      {/* 主人公キャラクター本体 */}
+      <g transform="translate(98, 56)">
+        {/* 着物（貧乏時はツギハギ茶色、成金時は豪華な紫＆金） */}
+        <path
+          d="M-26,48 L-18,14 L18,14 L26,48 Z"
+          fill={mood === "rich" ? "#7e22ce" : "#78350f"}
+          stroke="#292524"
+          strokeWidth="2"
+        />
+        {/* 襟元 */}
+        <path
+          d="M-10,14 L0,28 L10,14"
+          fill="none"
+          stroke={mood === "rich" ? "#facc15" : "#d6d3d1"}
+          strokeWidth="3"
+        />
+        {/* ツギハギパッチ（貧乏時のみ） */}
+        {mood !== "rich" && (
+          <g transform="translate(6, 28)">
+            <rect width="10" height="8" fill="#a8a29e" stroke="#44403c" strokeWidth="1" />
+            <line x1="2" y1="-1" x2="2" y2="2" stroke="#44403c" strokeWidth="1" />
+            <line x1="8" y1="-1" x2="8" y2="2" stroke="#44403c" strokeWidth="1" />
+          </g>
+        )}
+
+        {/* 顔 */}
+        <circle cx="0" cy="-2" r="17" fill="#fed7aa" stroke="#292524" strokeWidth="2" />
+
+        {/* ちょんまげ・ボサボサ髪 */}
+        <path
+          d="M-17,-4 C-18,-22 18,-22 17,-4 C12,-10 -12,-10 -17,-4 Z"
+          fill="#1c1917"
+        />
+        {mood === "rich" ? (
+          /* 成金王冠 */
+          <polygon
+            points="-12,-18 -8,-30 0,-22 8,-30 12,-18"
+            fill="#facc15"
+            stroke="#a16207"
+            strokeWidth="1.5"
+          />
+        ) : (
+          /* 貧乏ボサボサアホ毛 */
+          <path d="M-3,-19 Q-8,-28 -1,-26 Q4,-31 5,-19" fill="none" stroke="#1c1917" strokeWidth="2" />
+        )}
+
+        {/* 表情の描き分け */}
+        {mood === "poor" && (
+          <>
+            <circle cx="-6" cy="-2" r="2" fill="#1c1917" />
+            <circle cx="6" cy="-2" r="2" fill="#1c1917" />
+            <path d="M-5,6 Q0,10 5,6" fill="none" stroke="#1c1917" strokeWidth="2" />
+          </>
+        )}
+        {mood === "rich" && (
+          <>
+            {/* キラキラ笑顔 */}
+            <path d="M-9,-3 Q-6,-7 -3,-3" fill="none" stroke="#1c1917" strokeWidth="2" />
+            <path d="M3,-3 Q6,-7 9,-3" fill="none" stroke="#1c1917" strokeWidth="2" />
+            <path d="M-7,4 Q0,13 7,4 Z" fill="#ef4444" stroke="#1c1917" strokeWidth="1.5" />
+          </>
+        )}
+        {mood === "panic" && (
+          <>
+            {/* ガーン！青ざめ＆白目顔 */}
+            <circle cx="-6" cy="-2" r="3" fill="#ffffff" stroke="#1c1917" strokeWidth="1.5" />
+            <circle cx="6" cy="-2" r="3" fill="#ffffff" stroke="#1c1917" strokeWidth="1.5" />
+            <ellipse cx="0" cy="7" rx="4" ry="5" fill="#1c1917" />
+            <path d="M14,-10 Q18,-4 14,0 Q11,-4 14,-10" fill="#38bdf8" />
+          </>
+        )}
+      </g>
+
+      {/* 左側のビー玉イラスト */}
+      <g transform="translate(34, 68)">
+        <circle r="11" fill="#38bdf8" stroke="#0f172a" strokeWidth="2" />
+        <path d="M-4,-5 Q3,0 -3,6" fill="none" stroke="#fef08a" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="-3" cy="-4" r="2.5" fill="#ffffff" />
+      </g>
+    </svg>
+  );
+}
 
 export default function BinBallPage() {
   const [phase, setPhase] = useState<GamePhase>("title");
@@ -495,7 +641,6 @@ export default function BinBallPage() {
       return;
     }
 
-    // 盤面の左半分・右半分のどこをタップしても即フリッパー反応
     if (x < LANE_X / 2) {
       activePointersRef.current.set(e.pointerId, {
         role: "left",
@@ -593,7 +738,7 @@ export default function BinBallPage() {
     }
   };
 
-  // メイン物理＆描画ループ
+  // メイン物理＆ベクターイラスト描画ループ
   useEffect(() => {
     if (phase !== "playing") return;
     let animId: number;
@@ -675,7 +820,6 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.8;
           }
 
-          // 右上カーブガイド
           checkSlantWall(255, 16, 332, 85, 0.96);
 
           if (b.inLane) {
@@ -699,11 +843,9 @@ export default function BinBallPage() {
           }
 
           if (!b.inLane) {
-            // 下部ガイド壁（ボタン枠を削除した分、フリッパーを下へ配置して盤面広々）
             checkSlantWall(16, 405, 86, 468, 0.88);
             checkSlantWall(LANE_X, 405, 226, 468, 0.88);
 
-            // 左右フリッパー当たり判定
             const lPivotX = 88;
             const lPivotY = 470;
             const fLen = 54;
@@ -746,7 +888,6 @@ export default function BinBallPage() {
             }
           }
 
-          // バンパー衝突判定
           let hitBumperIndex = -1;
           for (let i = 0; i < gs.bumpers.length; i++) {
             const bmp = gs.bumpers[i];
@@ -799,7 +940,6 @@ export default function BinBallPage() {
             }
           }
 
-          // 破れ穴ギミック（軌道変化）
           if (!b.inLane) {
             for (const h of gs.holes) {
               if (h.cooldown <= 0 && Math.hypot(b.x - h.x, b.y - h.y) < h.r + 3) {
@@ -930,7 +1070,19 @@ export default function BinBallPage() {
         }
       }
 
-      // 「画面の左右どこでもタップできる」視覚ガイド（ボタン枠なし・透かし表示＋タップ時ハイライト）
+      // 第5章（成金御殿）：背景に「打ち出の小槌＆招き猫」の豪華透かし模様
+      if (chapter === 5) {
+        ctx.save();
+        ctx.fillStyle = "rgba(180, 83, 9, 0.14)";
+        ctx.font = "44px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("💰", 95, 110);
+        ctx.fillText("🐱", 210, 110);
+        ctx.fillText("🏯", 152, 290);
+        ctx.restore();
+      }
+
+      // 左右どこでもタップガイド＆ハイライト
       const halfW = LANE_X / 2;
       if (gs.leftPressed) {
         ctx.fillStyle = "rgba(251, 191, 36, 0.22)";
@@ -941,7 +1093,6 @@ export default function BinBallPage() {
         ctx.fillRect(halfW, 16, halfW, H - 32);
       }
 
-      // 中央境界の薄い点線
       ctx.save();
       ctx.setLineDash([6, 6]);
       ctx.strokeStyle =
@@ -953,7 +1104,6 @@ export default function BinBallPage() {
       ctx.stroke();
       ctx.restore();
 
-      // 左右それぞれの半面に透かしガイド文字を表示
       ctx.fillStyle =
         chapter === 3 ? "rgba(254, 243, 199, 0.55)" : "rgba(120, 53, 15, 0.45)";
       ctx.font = "bold 11px sans-serif";
@@ -961,7 +1111,7 @@ export default function BinBallPage() {
       ctx.fillText("◀ 左半分タップ", 82, 355);
       ctx.fillText("右半分タップ ▶", 224, 355);
 
-      // 雨漏り水たまり
+      // 雨漏り水たまり（波紋リングイラスト付き）
       gs.puddles.forEach((p) => {
         ctx.fillStyle = "rgba(56, 189, 248, 0.42)";
         ctx.beginPath();
@@ -969,6 +1119,22 @@ export default function BinBallPage() {
         ctx.fill();
         ctx.strokeStyle = "#0284c7";
         ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 内側の波紋イラスト
+        const ripple = (Date.now() / 500) % 1;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.7 - ripple * 0.6})`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(
+          p.x,
+          p.y,
+          p.rx * (0.25 + ripple * 0.5),
+          p.ry * (0.25 + ripple * 0.5),
+          0,
+          0,
+          Math.PI * 2
+        );
         ctx.stroke();
       });
 
@@ -1022,7 +1188,7 @@ export default function BinBallPage() {
       ctx.lineTo(226, 468);
       ctx.stroke();
 
-      // バンパー描画
+      // --- ターゲットバンパーのベクターイラスト描画 ---
       gs.bumpers.forEach((bmp) => {
         const scale = 1 + Math.max(0, bmp.hitAnim) * 0.22;
         ctx.save();
@@ -1030,57 +1196,211 @@ export default function BinBallPage() {
         ctx.scale(scale, scale);
 
         if (bmp.type === "can") {
-          ctx.fillStyle = "#94a3b8";
+          // 1. ベコッとへこんだアルミ空き缶イラスト
+          ctx.rotate(-0.22);
+          // 缶の胴体（真ん中がベコッと凹んだパス）
+          const canGrad = ctx.createLinearGradient(-14, -18, 14, 18);
+          canGrad.addColorStop(0, "#e2e8f0");
+          canGrad.addColorStop(0.5, "#94a3b8");
+          canGrad.addColorStop(1, "#475569");
+          ctx.fillStyle = canGrad;
+          ctx.strokeStyle = "#1e293b";
+          ctx.lineWidth = 2;
+
           ctx.beginPath();
-          ctx.arc(0, 0, bmp.r, 0, Math.PI * 2);
+          ctx.moveTo(-12, -16);
+          ctx.lineTo(12, -16);
+          ctx.lineTo(13, -5);
+          ctx.quadraticCurveTo(5, 0, 13, 6); // 右側のへこみ
+          ctx.lineTo(12, 16);
+          ctx.lineTo(-12, 16);
+          ctx.lineTo(-13, 5);
+          ctx.quadraticCurveTo(-6, -1, -13, -7); // 左側のへこみ
+          ctx.closePath();
           ctx.fill();
+          ctx.stroke();
+
+          // 缶の上蓋・プルトップリング
+          ctx.fillStyle = "#cbd5e1";
+          ctx.beginPath();
+          ctx.ellipse(0, -16, 12, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
           ctx.strokeStyle = "#334155";
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(2, -16, 4, 1.5, 0, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.fillStyle = "#1e293b";
-          ctx.font = "bold 12px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText("缶", 0, 4);
+
+          // 缶の赤ラベル帯
+          ctx.fillStyle = "#dc2626";
+          ctx.fillRect(-10, -4, 20, 8);
+          // ハイライト線
+          ctx.strokeStyle = "rgba(255,255,255,0.7)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-7, -11);
+          ctx.lineTo(-7, 11);
+          ctx.stroke();
         } else if (bmp.type === "chawan") {
-          ctx.fillStyle = "#e0f2fe";
+          // 2. 縁（ふち）がギザッと欠けたボロ茶碗イラスト
+          // 高台（底の輪っか）
+          ctx.fillStyle = "#cbd5e1";
+          ctx.strokeStyle = "#0f172a";
+          ctx.lineWidth = 2;
+          ctx.fillRect(-7, 11, 14, 5);
+          ctx.strokeRect(-7, 11, 14, 5);
+
+          // 茶碗本体（右上の縁が大きくギザッと欠けた形）
+          const bowlGrad = ctx.createLinearGradient(-18, -10, 18, 12);
+          bowlGrad.addColorStop(0, "#ffffff");
+          bowlGrad.addColorStop(1, "#bae6fd");
+          ctx.fillStyle = bowlGrad;
+
           ctx.beginPath();
-          ctx.arc(0, 0, bmp.r, 0, Math.PI * 2);
+          ctx.moveTo(-19, -8);
+          ctx.lineTo(6, -8);
+          // 欠け表現（ギザギザ）
+          ctx.lineTo(9, -2);
+          ctx.lineTo(13, -5);
+          ctx.lineTo(15, 0);
+          ctx.lineTo(19, -4);
+          ctx.quadraticCurveTo(17, 12, 0, 12);
+          ctx.quadraticCurveTo(-17, 12, -19, -8);
+          ctx.closePath();
           ctx.fill();
-          ctx.strokeStyle = "#0369a1";
-          ctx.lineWidth = 3;
           ctx.stroke();
-          ctx.fillStyle = "#0c4a6e";
-          ctx.font = "bold 12px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText("茶碗", 0, 4);
+
+          // 青い和柄の二本線＆ヒビ割れ線
+          ctx.strokeStyle = "#0284c7";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-16, 0);
+          ctx.quadraticCurveTo(0, 4, 15, 1);
+          ctx.stroke();
+
+          // ヒビ線
+          ctx.strokeStyle = "#475569";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(9, -2);
+          ctx.lineTo(5, 4);
+          ctx.lineTo(8, 8);
+          ctx.stroke();
         } else {
-          ctx.fillStyle = "#fef08a";
+          // 3. 分厚い一万円札の札束（帯封付き）イラスト
+          ctx.rotate(-0.15);
+          // 札の厚み（側面）
+          ctx.fillStyle = "#86efac";
+          ctx.strokeStyle = "#14532d";
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.ellipse(0, 0, bmp.r * 0.85, bmp.r * 1.1, 0, 0, Math.PI * 2);
+          ctx.roundRect(-19, -8, 38, 22, 3);
           ctx.fill();
-          ctx.strokeStyle = "#a16207";
-          ctx.lineWidth = 3;
           ctx.stroke();
-          ctx.fillStyle = "#713f12";
-          ctx.font = "bold 12px sans-serif";
+
+          // お札の重なり横線
+          ctx.strokeStyle = "#166534";
+          ctx.lineWidth = 1;
+          for (let ly = 6; ly <= 11; ly += 2.5) {
+            ctx.beginPath();
+            ctx.moveTo(-18, ly);
+            ctx.lineTo(18, ly);
+            ctx.stroke();
+          }
+
+          // 一番上の一万円札表面
+          ctx.fillStyle = "#dcfce7";
+          ctx.strokeStyle = "#15803d";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.roundRect(-19, -13, 38, 18, 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // 白い帯封（おびふう）
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 1.2;
+          ctx.fillRect(-4, -13, 8, 26);
+          ctx.strokeRect(-4, -13, 8, 26);
+
+          // 帯封の赤印＆「1万」表記
+          ctx.fillStyle = "#dc2626";
+          ctx.beginPath();
+          ctx.arc(0, -4, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#14532d";
+          ctx.font = "bold 8px sans-serif";
           ctx.textAlign = "center";
-          ctx.fillText("小判", 0, 4);
+          ctx.fillText("1万", -11, -2);
+          ctx.fillText("1万", 11, -2);
         }
         ctx.restore();
       });
 
-      // 借金取りブロック
+      // 4. グラサン借金取りキャラクターのベクターイラスト描画
       gs.collectors.forEach((c) => {
-        ctx.fillStyle = "#be123c";
-        ctx.fillRect(c.x, c.y, c.w, c.h);
+        ctx.save();
+        ctx.translate(c.x + c.w / 2, c.y + c.h / 2);
+
+        // 黒スーツの肩・体
+        ctx.fillStyle = "#18181b";
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-26, -6, 52, 18, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // 白シャツ＆赤ネクタイ
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 10px sans-serif";
+        ctx.beginPath();
+        ctx.moveTo(-5, -6);
+        ctx.lineTo(5, -6);
+        ctx.lineTo(0, 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#dc2626";
+        ctx.fillRect(-1.5, -4, 3, 10);
+
+        // 角刈りの顔
+        ctx.fillStyle = "#fdba74";
+        ctx.strokeStyle = "#18181b";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.roundRect(-12, -16, 24, 18, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // 角刈りヘア
+        ctx.fillStyle = "#09090b";
+        ctx.fillRect(-12, -18, 24, 5);
+
+        // 黒サングラス（レンズ2枚）
+        ctx.fillStyle = "#09090b";
+        ctx.fillRect(-10, -11, 8, 5);
+        ctx.fillRect(2, -11, 8, 5);
+        ctx.strokeStyle = "#eab308";
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(-10, -11, 8, 5);
+        ctx.strokeRect(2, -11, 8, 5);
+        ctx.beginPath();
+        ctx.moveTo(-2, -9);
+        ctx.lineTo(2, -9);
+        ctx.stroke();
+
+        // 怒りマーク＆吹き出し「返せ！」
+        ctx.fillStyle = "#dc2626";
+        ctx.font = "bold 9px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("借金取り", c.x + c.w / 2, c.y + 11);
+        ctx.fillText("💢返せ!", 0, -21);
+
+        ctx.restore();
       });
 
-      // 左右フリッパー
-      const drawFlipper = (
+      // 5. 木製しゃもじフリッパーのイラスト描画
+      const drawShamojiFlipper = (
         px: number,
         py: number,
         angle: number,
@@ -1089,19 +1409,50 @@ export default function BinBallPage() {
         ctx.save();
         ctx.translate(px, py);
         ctx.rotate(isRight ? Math.PI + angle : angle);
-        ctx.fillStyle = "#ea580c";
+
+        const woodGrad = ctx.createLinearGradient(0, -8, 56, 8);
+        woodGrad.addColorStop(0, "#d97706");
+        woodGrad.addColorStop(0.5, "#f59e0b");
+        woodGrad.addColorStop(1, "#fde68a");
+
+        ctx.fillStyle = woodGrad;
         ctx.strokeStyle = "#451a03";
         ctx.lineWidth = 2.5;
+
+        // しゃもじの柄（持ち手）から先端のヘラへ広がる形状
         ctx.beginPath();
-        ctx.roundRect(-4, -6, 56, 12, 6);
+        ctx.moveTo(-4, -4);
+        ctx.lineTo(22, -4);
+        ctx.quadraticCurveTo(42, -11, 56, -7);
+        ctx.quadraticCurveTo(60, 0, 56, 7);
+        ctx.quadraticCurveTo(42, 11, 22, 4);
+        ctx.lineTo(-4, 4);
+        ctx.closePath();
         ctx.fill();
         ctx.stroke();
+
+        // 木目ライン
+        ctx.strokeStyle = "rgba(120, 53, 15, 0.45)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(26, -2);
+        ctx.lineTo(50, -3);
+        ctx.moveTo(26, 2);
+        ctx.lineTo(50, 3);
+        ctx.stroke();
+
+        // 支点ピン
+        ctx.fillStyle = "#fef3c7";
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.restore();
       };
-      drawFlipper(88, 470, gs.leftFlipperAngle, false);
-      drawFlipper(224, 470, gs.rightFlipperAngle, true);
+      drawShamojiFlipper(88, 470, gs.leftFlipperAngle, false);
+      drawShamojiFlipper(224, 470, gs.rightFlipperAngle, true);
 
-      // リアルな発射バネ
+      // 発射バネ
       const recoilOffset =
         gs.springRecoilAnim > 0
           ? Math.sin(gs.springRecoilAnim * Math.PI * 6) * 14 * gs.springRecoilAnim
@@ -1168,18 +1519,32 @@ export default function BinBallPage() {
         ctx.fillText("↓ 引いて離す", 279, 422 + pulse);
       }
 
-      // ビー玉描画
+      // 6. ラムネビー玉（ガラス渦巻き模様入り）のイラスト描画
+      ctx.save();
+      ctx.translate(b.x, b.y);
       ctx.fillStyle = "#38bdf8";
       ctx.beginPath();
-      ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
+      ctx.arc(0, 0, BALL_R, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = "#0f172a";
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      // ガラス内部の色付き渦巻きリボン
+      ctx.strokeStyle = "#fef08a";
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-3, -4);
+      ctx.quadraticCurveTo(3, 0, -2, 5);
+      ctx.stroke();
+
+      // ガラスの光沢ハイライト
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(b.x - 2.5, b.y - 2.5, 2.5, 0, Math.PI * 2);
+      ctx.arc(-2.8, -2.8, 2.3, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
 
       animId = requestAnimationFrame(updateAndDraw);
     };
@@ -1202,7 +1567,7 @@ export default function BinBallPage() {
 
   const currentCfg = buildStageConfig(chapter, stage);
 
-  // --- プレイ中はスマホ画面いっぱいのフルスクリーン表示（はみ出しゼロ） ---
+  // --- プレイ中はスマホ画面いっぱいのフルスクリーン表示 ---
   if (phase === "playing") {
     return (
       <div className="playing-fullscreen">
@@ -1295,7 +1660,7 @@ export default function BinBallPage() {
           <span>
             {currentCfg.chapterTitle}（{currentCfg.mode === "target" ? "達成で即クリア！" : "サバイバル！"}）
           </span>
-          <span>🥫🍚💼💰</span>
+          <span>🥫🍚💼💵</span>
         </div>
 
         <div className="console-screen">
@@ -1326,33 +1691,7 @@ export default function BinBallPage() {
           {phase === "title" && (
             <>
               <div className="hero-card">
-                <svg
-                  width="180"
-                  height="96"
-                  viewBox="0 0 180 96"
-                  style={{
-                    borderRadius: "10px",
-                    border: "3px solid #78350f",
-                    backgroundColor: "#faf6eb",
-                  }}
-                >
-                  <line x1="60" y1="0" x2="60" y2="96" stroke="#854d0e" strokeWidth="3" />
-                  <line x1="120" y1="0" x2="120" y2="96" stroke="#854d0e" strokeWidth="3" />
-                  <line x1="0" y1="32" x2="180" y2="32" stroke="#854d0e" strokeWidth="3" />
-                  <line x1="0" y1="64" x2="180" y2="64" stroke="#854d0e" strokeWidth="3" />
-                  <polygon
-                    points="90,34 108,29 102,49 114,62 93,67 81,58 72,41"
-                    fill="#ffffff"
-                    stroke="#d6c7b2"
-                    strokeWidth="1"
-                  />
-                  <polygon
-                    points="90,38 104,34 99,49 109,59 93,63 83,56 76,43"
-                    fill="#334155"
-                  />
-                  <circle cx="42" cy="48" r="10" fill="#38bdf8" stroke="#0f172a" strokeWidth="2" />
-                  <circle cx="39" cy="45" r="3" fill="#ffffff" />
-                </svg>
+                <ProtagonistIllustration mood="poor" />
 
                 <div className="prologue-title">
                   📖 プロローグ 〜貧乏からの大逆転〜
@@ -1360,7 +1699,7 @@ export default function BinBallPage() {
                 <p className="prologue-text">
                   破れ障子の四畳半から雨漏りアパート、借金取り、質屋の蔵を経て、
                   <br />
-                  目指せ一攫千金の成金御殿！
+                  目指せ一攫千金・札束風呂の成金御殿！
                 </p>
               </div>
 
@@ -1374,7 +1713,7 @@ export default function BinBallPage() {
                   <span>2.雨漏り</span>
                 </div>
                 <div className="chapter-item">
-                  <span className="chapter-icon">💼</span>
+                  <span className="chapter-icon">🕶️</span>
                   <span>3.借金取り</span>
                 </div>
                 <div className="chapter-item">
@@ -1382,7 +1721,7 @@ export default function BinBallPage() {
                   <span>4.質屋の蔵</span>
                 </div>
                 <div className="chapter-item">
-                  <span className="chapter-icon">👑</span>
+                  <span className="chapter-icon">💵</span>
                   <span>5.成金御殿</span>
                 </div>
               </div>
@@ -1511,6 +1850,7 @@ export default function BinBallPage() {
           {phase === "stage_clear" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
               <div className="hero-card">
+                <ProtagonistIllustration mood="rich" />
                 <div style={{ fontSize: "24px", fontWeight: 900, color: "#b45309" }}>
                   🎉 ステージクリア！
                 </div>
@@ -1535,6 +1875,7 @@ export default function BinBallPage() {
           {phase === "game_over" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
               <div className="hero-card">
+                <ProtagonistIllustration mood="panic" />
                 <div style={{ fontSize: "22px", fontWeight: 900, color: "#e11d48" }}>
                   💸 破産！ゲームオーバー
                 </div>
@@ -1560,11 +1901,12 @@ export default function BinBallPage() {
           {phase === "epilogue" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
               <div className="hero-card">
+                <ProtagonistIllustration mood="rich" />
                 <div style={{ fontSize: "22px", fontWeight: 900, color: "#b45309" }}>
                   👑 祝・全章制覇！大富豪誕生！
                 </div>
                 <p className="prologue-text">
-                  ボロボロ障子から始まった貧乏生活は、ついに成金御殿の黄金小判を制覇して大逆転！
+                  ボロボロ障子から始まった貧乏生活は、ついに成金御殿の分厚い札束を制覇して大逆転！
                   <br />
                   エンドレスモードが解放されたで！
                 </p>
@@ -1580,8 +1922,8 @@ export default function BinBallPage() {
           <span>🏚️</span>
           <span>🥫</span>
           <span>🍚</span>
-          <span>💼</span>
-          <span>💰</span>
+          <span>🕶️</span>
+          <span>💵</span>
         </div>
       </div>
 
