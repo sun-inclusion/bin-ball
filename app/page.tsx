@@ -628,8 +628,8 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.8;
           }
 
-          // 45度斜め天井カーブガイド（レーンからメイン盤面へ確実に送り出す）
-          checkSlantWall(332, 16, 250, 95, 0.92);
+          // 右上カーブガイド（\ 向き：左上(255,16) -> 右下(332,85) で左のメイン盤面へ跳ね返す）
+          checkSlantWall(255, 16, 332, 85, 0.92);
 
           if (b.inLane) {
             if (b.x + BALL_R > W - 12) {
@@ -941,7 +941,7 @@ export default function BinBallPage() {
       drawTouchPad(20, 444, 130, 40, "◀ 左フリッパー", gs.leftPressed);
       drawTouchPad(160, 444, 130, 40, "右フリッパー ▶", gs.rightPressed);
 
-      // 外枠・レーン壁・45度右上カーブガイド
+      // 外枠・レーン壁・右上カーブガイド（\ 向き）
       ctx.strokeStyle = "#451a03";
       ctx.lineWidth = 8;
       ctx.strokeRect(12, 12, W - 24, H - 16);
@@ -953,8 +953,8 @@ export default function BinBallPage() {
 
       ctx.lineWidth = 6;
       ctx.beginPath();
-      ctx.moveTo(332, 16);
-      ctx.lineTo(250, 95);
+      ctx.moveTo(255, 16);
+      ctx.lineTo(332, 85);
       ctx.stroke();
 
       ctx.beginPath();
