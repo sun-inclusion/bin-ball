@@ -1,11 +1,252 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
+  background-color: #fefce8;
+  color: #292524;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
-  background-color: #1c1917;
-  color: #f5f5f4;
+  min-height: 100vh;
+}
+
+.page-wrap {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 14px 12px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 携帯ゲーム機風の外枠ベゼル（オクラたたき準拠） */
+.console-bezel {
+  background: linear-gradient(180deg, #e7e5e4 0%, #d6d3d1 100%);
+  border-radius: 26px;
+  padding: 14px 12px 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.14), inset 0 2px 3px rgba(255, 255, 255, 0.8);
+  border: 2px solid #a8a29e;
+}
+
+.console-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #44403c;
+}
+
+/* 内側の液晶画面枠（貧乏和風の琥珀・木目アクセント） */
+.console-screen {
+  background-color: #ffffff;
+  border: 4px solid #b45309;
+  border-radius: 18px;
+  padding: 14px 12px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.game-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #92400e;
+  letter-spacing: -0.02em;
+}
+
+.stage-badge {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1.5px solid #f59e0b;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* プロローグ＆ビジュアルカード（オクラたたきの中央黄色カード準拠） */
+.hero-card {
+  background: linear-gradient(180deg, #e0f2fe 0%, #fef9c3 65%, #fde68a 100%);
+  border: 1.5px solid #f59e0b;
+  border-radius: 14px;
+  padding: 12px 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.prologue-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #b45309;
+}
+
+.prologue-text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #44403c;
+  font-weight: 600;
+}
+
+/* 全5章アイコン一覧バー */
+.chapter-strip {
+  background-color: #f5f5f4;
+  border: 1px solid #e7e5e4;
+  border-radius: 12px;
+  padding: 8px 4px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.chapter-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #57534e;
+}
+
+.chapter-icon {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+/* メインボタン（オクラたたき準拠の大きくて押しやすい角丸ボタン） */
+.btn-primary {
+  width: 100%;
+  padding: 15px 16px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #78350f;
+  transition: transform 0.08s;
+}
+
+.btn-primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #78350f;
+}
+
+.btn-line {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 14px;
+  border: none;
+  background-color: #06c755;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #047857;
+}
+
+.btn-sub {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #d6d3d1;
+  background-color: #f5f5f4;
+  color: #44403c;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mini-tools {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.mini-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* ゲーム機下部飾りアイコン */
+.console-bottom-deco {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 8px 0;
+  font-size: 16px;
+  opacity: 0.75;
+}
+
+/* 枠外：広告スペース＆シリーズリンク（オクラたたき準拠） */
+.ad-slot-box {
+  background-color: #fafaf9;
+  border: 1.5px dashed #d6d3d1;
+  border-radius: 12px;
+  padding: 14px 10px;
+  text-align: center;
+  color: #78716c;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.series-bar {
+  background-color: #ffffff;
+  border: 1.5px solid #e7e5e4;
+  border-radius: 12px;
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 800;
+  color: #44403c;
+  text-decoration: none;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  font-size: 11px;
+  color: #78716c;
+}
+
+.footer-links a {
+  color: #78716c;
+  text-decoration: underline;
 }
