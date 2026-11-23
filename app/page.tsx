@@ -219,7 +219,7 @@ class SoundFX {
     osc.type = "sawtooth";
     osc.frequency.setValueAtTime(130, this.ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(
-      280 + power * 360,
+      280 + power * 420,
       this.ctx.currentTime + 0.22
     );
     gain.gain.setValueAtTime(0.24, this.ctx.currentTime);
@@ -400,11 +400,12 @@ export default function BinBallPage() {
     []
   );
 
+  // 発射実行（引っ張りパワーに応じた初速メリハリ：弱12.2 〜 強20.3）
   const releasePlunger = useCallback(() => {
     const gs = gameStateRef.current;
     if (gs.ball.inLane && !gs.ball.active && gs.plungerPower > 0.12) {
-      const p = Math.max(0.45, gs.plungerPower);
-      gs.ball.vy = -(12.2 + p * 4.6);
+      const p = Math.max(0.15, gs.plungerPower);
+      gs.ball.vy = -(10.8 + p * 9.5);
       gs.ball.vx = -0.25;
       gs.ball.active = true;
       gs.springRecoilAnim = 1.0;
@@ -627,14 +628,15 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.8;
           }
 
-          checkSlantWall(332, 22, 260, 72, 0.9);
+          // 45度斜め天井カーブガイド（レーンからメイン盤面へ確実に送り出す）
+          checkSlantWall(332, 16, 250, 95, 0.92);
 
           if (b.inLane) {
             if (b.x + BALL_R > W - 12) {
               b.x = W - 12 - BALL_R;
               b.vx = -Math.abs(b.vx) * 0.7;
             }
-            if (b.x - BALL_R < LANE_X && b.y > 92) {
+            if (b.x - BALL_R < LANE_X && b.y > 102) {
               b.x = LANE_X + BALL_R;
               b.vx = Math.abs(b.vx) * 0.7;
             }
@@ -751,11 +753,14 @@ export default function BinBallPage() {
             }
           });
 
-          const maxSpd = 11.5;
-          const curSpd = Math.hypot(b.vx, b.vy);
-          if (curSpd > maxSpd) {
-            b.vx = (b.vx / curSpd) * maxSpd;
-            b.vy = (b.vy / curSpd) * maxSpd;
+          // メイン盤面に出てからだけ速度上限を適用（レーン内は引っ張りパワー全開！）
+          if (!b.inLane) {
+            const maxSpd = 12.0;
+            const curSpd = Math.hypot(b.vx, b.vy);
+            if (curSpd > maxSpd) {
+              b.vx = (b.vx / curSpd) * maxSpd;
+              b.vy = (b.vy / curSpd) * maxSpd;
+            }
           }
         }
 
@@ -794,7 +799,7 @@ export default function BinBallPage() {
         }
       }
 
-      // --- 描画処理（リアルなボロボロ障子デザイン） ---
+      // --- 描画処理 ---
       ctx.clearRect(0, 0, W, H);
 
       const bgGrad = ctx.createLinearGradient(0, 0, W, H);
@@ -821,7 +826,7 @@ export default function BinBallPage() {
         ctx.stroke();
       }
 
-      // 障子の組子（立体木枠＋影）
+      // 障子の組子
       const drawWoodBar = (x1: number, y1: number, x2: number, y2: number) => {
         ctx.strokeStyle = "rgba(69, 26, 3, 0.24)";
         ctx.lineWidth = 6;
@@ -868,7 +873,7 @@ export default function BinBallPage() {
         ctx.stroke();
       });
 
-      // 破れ障子の穴（めくれ和紙＋暗い部屋）
+      // 破れ障子の穴
       gs.holes.forEach((h) => {
         const spikes = 12;
         ctx.fillStyle = "#ffffff";
@@ -936,20 +941,20 @@ export default function BinBallPage() {
       drawTouchPad(20, 444, 130, 40, "◀ 左フリッパー", gs.leftPressed);
       drawTouchPad(160, 444, 130, 40, "右フリッパー ▶", gs.rightPressed);
 
-      // 外枠・レーン壁・右上カーブガイド
+      // 外枠・レーン壁・45度右上カーブガイド
       ctx.strokeStyle = "#451a03";
       ctx.lineWidth = 8;
       ctx.strokeRect(12, 12, W - 24, H - 16);
 
       ctx.beginPath();
-      ctx.moveTo(LANE_X, b.inLane ? 92 : 16);
+      ctx.moveTo(LANE_X, b.inLane ? 102 : 16);
       ctx.lineTo(LANE_X, H - 8);
       ctx.stroke();
 
       ctx.lineWidth = 6;
       ctx.beginPath();
-      ctx.moveTo(332, 22);
-      ctx.lineTo(260, 72);
+      ctx.moveTo(332, 16);
+      ctx.lineTo(250, 95);
       ctx.stroke();
 
       ctx.beginPath();
@@ -1141,7 +1146,7 @@ export default function BinBallPage() {
 
   return (
     <div className="page-wrap">
-      {/* 携帯ゲーム機風フレーム（オクラたたき完全準拠） */}
+      {/* 携帯ゲーム機風フレーム */}
       <div className="console-bezel">
         {/* 上部ステータスバー */}
         <div className="console-top-bar">
@@ -1182,11 +1187,10 @@ export default function BinBallPage() {
             </div>
           )}
 
-          {/* --- タイトル画面（オクラたたき準拠レイアウト） --- */}
+          {/* --- タイトル画面 --- */}
           {phase === "title" && (
             <>
               <div className="hero-card">
-                {/* ボロボロ障子＆ビー玉SVGイラスト */}
                 <svg
                   width="180"
                   height="96"
@@ -1201,7 +1205,6 @@ export default function BinBallPage() {
                   <line x1="120" y1="0" x2="120" y2="96" stroke="#854d0e" strokeWidth="3" />
                   <line x1="0" y1="32" x2="180" y2="32" stroke="#854d0e" strokeWidth="3" />
                   <line x1="0" y1="64" x2="180" y2="64" stroke="#854d0e" strokeWidth="3" />
-                  {/* めくれ和紙＋破れ穴 */}
                   <polygon
                     points="90,34 108,29 102,49 114,62 93,67 81,58 72,41"
                     fill="#ffffff"
@@ -1212,7 +1215,6 @@ export default function BinBallPage() {
                     points="90,38 104,34 99,49 109,59 93,63 83,56 76,43"
                     fill="#1c1917"
                   />
-                  {/* ビー玉 */}
                   <circle cx="42" cy="48" r="10" fill="#38bdf8" stroke="#0f172a" strokeWidth="2" />
                   <circle cx="39" cy="45" r="3" fill="#ffffff" />
                 </svg>
@@ -1229,7 +1231,6 @@ export default function BinBallPage() {
                 </p>
               </div>
 
-              {/* 全5章アイコン一覧（オクラたたきの1〜5アイコンバー準拠） */}
               <div className="chapter-strip">
                 <div className="chapter-item">
                   <span className="chapter-icon">🏚️</span>
@@ -1253,7 +1254,6 @@ export default function BinBallPage() {
                 </div>
               </div>
 
-              {/* メインアクションボタン */}
               <button
                 onClick={() => {
                   setupStage(1, 1, false);
@@ -1281,7 +1281,6 @@ export default function BinBallPage() {
                 💬 LINEで友達にシェアする
               </button>
 
-              {/* 音声・図鑑・ハイスコア表示 */}
               <div className="mini-tools">
                 <span className="mini-pill">🏆 最高 {highScore}pt</span>
                 <button onClick={toggleMute} className="mini-pill">
@@ -1292,7 +1291,6 @@ export default function BinBallPage() {
                 </Link>
               </div>
 
-              {/* 隠し管理者モード */}
               {isAdmin && (
                 <div
                   style={{
@@ -1544,13 +1542,13 @@ export default function BinBallPage() {
         </div>
       </div>
 
-      {/* 枠外：広告スペース（オクラたたき完全準拠） */}
+      {/* 枠外：広告スペース */}
       <div id="ad-banner-slot" className="ad-slot-box">
         <div style={{ fontWeight: 800 }}>SPONSORED LINK / 広告スペース</div>
         <div>（ここに無料広告バナーコードを配置できます）</div>
       </div>
 
-      {/* 枠外：シリーズ相互リンク（オクラたたき完全準拠） */}
+      {/* 枠外：シリーズ相互リンク */}
       <a
         href="https://okura-tataki.vercel.app/"
         target="_blank"
