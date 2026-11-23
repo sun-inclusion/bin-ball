@@ -69,7 +69,6 @@ const CHAPTER_TITLES = [
   "第5章：逆転！成金御殿",
 ];
 
-// 穴（軌道変化ギミック）の候補スポット
 const HOLE_CANDIDATES = [
   { x: 65, y: 155 },
   { x: 230, y: 165 },
@@ -97,7 +96,6 @@ function generateRandomHoles(chapter: number, stage: number): ShojiHole[] {
   }));
 }
 
-// 発射直後のタダ取りを防ぐため、バンパーは中段〜左寄りに配置
 function generateStageBumpers(
   chapter: number,
   stage: number
@@ -375,7 +373,7 @@ export default function BinBallPage() {
   >(new Map());
 
   const gameStateRef = useRef({
-    ball: { x: 316, y: 446, vx: 0, vy: 0, inLane: true, active: false },
+    ball: { x: 316, y: 452, vx: 0, vy: 0, inLane: true, active: false },
     plungerPower: 0,
     springRecoilAnim: 0,
     charging: false,
@@ -417,7 +415,7 @@ export default function BinBallPage() {
       const cfg = buildStageConfig(ch, st);
       const gs = gameStateRef.current;
       gs.config = cfg;
-      gs.ball = { x: 316, y: 446, vx: 0, vy: 0, inLane: true, active: false };
+      gs.ball = { x: 316, y: 452, vx: 0, vy: 0, inLane: true, active: false };
       gs.plungerPower = 0;
       gs.springRecoilAnim = 0;
       gs.charging = false;
@@ -445,7 +443,6 @@ export default function BinBallPage() {
     []
   );
 
-  // 発射実行（バンパー群を飛び越えて外周から下部フリッパーへ落ちやすい軌道に調整）
   const releasePlunger = useCallback(() => {
     const gs = gameStateRef.current;
     if (gs.ball.inLane && !gs.ball.active && gs.plungerPower > 0.12) {
@@ -535,7 +532,7 @@ export default function BinBallPage() {
       gameStateRef.current.ball.inLane &&
       !gameStateRef.current.ball.active
     ) {
-      gameStateRef.current.ball.y = 446 + power * 48;
+      gameStateRef.current.ball.y = 452 + power * 52;
     }
   };
 
@@ -550,7 +547,7 @@ export default function BinBallPage() {
         gameStateRef.current.ball.inLane &&
         !gameStateRef.current.ball.active
       ) {
-        gameStateRef.current.ball.y = 446;
+        gameStateRef.current.ball.y = 452;
       }
     } else {
       syncFlipperPointerState();
@@ -678,7 +675,7 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.8;
           }
 
-          // 右上カーブガイド（\ 向き：発射後は左外周へ大きく送り出してタダ取りを抑制）
+          // 右上カーブガイド
           checkSlantWall(255, 16, 332, 85, 0.96);
 
           if (b.inLane) {
@@ -692,7 +689,6 @@ export default function BinBallPage() {
             }
             if (b.x < LANE_X - 8) {
               b.inLane = false;
-              // 発射直後は左壁沿いの落下ルートへ流し、フリッパー打ち返し勝負にする
               b.vx = Math.min(b.vx, -5.2);
             }
           } else {
@@ -703,13 +699,13 @@ export default function BinBallPage() {
           }
 
           if (!b.inLane) {
-            // 下部ガイド壁（フリッパー位置を少し上げてボタンを大きく確保）
-            checkSlantWall(16, 375, 86, 435, 0.88);
-            checkSlantWall(LANE_X, 375, 226, 435, 0.88);
+            // 下部ガイド壁（ボタン枠を削除した分、フリッパーを下へ配置して盤面広々）
+            checkSlantWall(16, 405, 86, 468, 0.88);
+            checkSlantWall(LANE_X, 405, 226, 468, 0.88);
 
-            // 左右フリッパー当たり判定（打ち返しパワーを大幅強化！）
+            // 左右フリッパー当たり判定
             const lPivotX = 88;
-            const lPivotY = 437;
+            const lPivotY = 470;
             const fLen = 54;
             const lx2 = lPivotX + Math.cos(gs.leftFlipperAngle) * fLen;
             const ly2 = lPivotY + Math.sin(gs.leftFlipperAngle) * fLen;
@@ -725,12 +721,12 @@ export default function BinBallPage() {
               Math.hypot(b.x - (lPivotX + lx2) / 2, b.y - (lPivotY + ly2) / 2) <
                 38
             ) {
-              b.vy = -11.2;
+              b.vy = -11.4;
               b.vx = (b.x - lPivotX) * 0.14 + 1.5;
             }
 
             const rPivotX = 224;
-            const rPivotY = 437;
+            const rPivotY = 470;
             const rx2 = rPivotX - Math.cos(-gs.rightFlipperAngle) * fLen;
             const ry2 = rPivotY + Math.sin(-gs.rightFlipperAngle) * fLen;
             checkSlantWall(
@@ -745,12 +741,12 @@ export default function BinBallPage() {
               Math.hypot(b.x - (rPivotX + rx2) / 2, b.y - (rPivotY + ry2) / 2) <
                 38
             ) {
-              b.vy = -11.2;
+              b.vy = -11.4;
               b.vx = (b.x - rPivotX) * 0.14 - 1.5;
             }
           }
 
-          // バンパー衝突判定（当たったターゲットは消滅＋全消しでボーナス補充）
+          // バンパー衝突判定
           let hitBumperIndex = -1;
           for (let i = 0; i < gs.bumpers.length; i++) {
             const bmp = gs.bumpers[i];
@@ -803,7 +799,7 @@ export default function BinBallPage() {
             }
           }
 
-          // 破れ穴ギミック（即死廃止 ➔ 引っかかって軌道がイレギュラーに曲がる！）
+          // 破れ穴ギミック（軌道変化）
           if (!b.inLane) {
             for (const h of gs.holes) {
               if (h.cooldown <= 0 && Math.hypot(b.x - h.x, b.y - h.y) < h.r + 3) {
@@ -851,7 +847,6 @@ export default function BinBallPage() {
           }
         }
 
-        // 下部溝落下のみアウト判定
         if (b.y > H + 12 && !gs.stageFinished) {
           sfx.playLost();
           showToast("溝に落ちた！");
@@ -864,7 +859,7 @@ export default function BinBallPage() {
           } else {
             gs.ball = {
               x: 316,
-              y: 446,
+              y: 452,
               vx: 0,
               vy: 0,
               inLane: true,
@@ -874,29 +869,23 @@ export default function BinBallPage() {
         }
       }
 
-      // --- 描画処理（全5章ごとの盤面テーマ進化） ---
+      // --- 描画処理 ---
       ctx.clearRect(0, 0, W, H);
 
-      // 章ごとの背景デザイン切り替え
       const bgGrad = ctx.createLinearGradient(0, 0, W, H);
       if (chapter === 1) {
-        // 第1章：隙間風の四畳半（日焼けした古障子）
         bgGrad.addColorStop(0, "#faf6eb");
         bgGrad.addColorStop(1, "#e6d5b8");
       } else if (chapter === 2) {
-        // 第2章：雨漏りボロアパート（湿ってカビ・シミのある障子）
         bgGrad.addColorStop(0, "#e2e8f0");
         bgGrad.addColorStop(1, "#cbd5e1");
       } else if (chapter === 3) {
-        // 第3章：借金取りの玄関先（重厚な木の格子戸）
         bgGrad.addColorStop(0, "#78350f");
         bgGrad.addColorStop(1, "#451a03");
       } else if (chapter === 4) {
-        // 第4章：質屋の蔵の奥（白漆喰となまこ壁）
         bgGrad.addColorStop(0, "#f8fafc");
         bgGrad.addColorStop(1, "#e2e8f0");
       } else {
-        // 第5章：逆転！成金御殿（黄金の金箔ふすま）
         bgGrad.addColorStop(0, "#fef08a");
         bgGrad.addColorStop(0.5, "#facc15");
         bgGrad.addColorStop(1, "#eab308");
@@ -904,9 +893,7 @@ export default function BinBallPage() {
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, W, H);
 
-      // 章ごとの背景模様・格子描画
       if (chapter === 4) {
-        // 質屋の蔵：なまこ壁のダイヤ格子模様
         ctx.strokeStyle = "#334155";
         ctx.lineWidth = 2;
         for (let gx = 40; gx < LANE_X; gx += 48) {
@@ -921,7 +908,6 @@ export default function BinBallPage() {
           }
         }
       } else {
-        // 障子・格子戸・金屏風の縦横桟
         const barColor =
           chapter === 3
             ? "#292524"
@@ -944,6 +930,37 @@ export default function BinBallPage() {
         }
       }
 
+      // 「画面の左右どこでもタップできる」視覚ガイド（ボタン枠なし・透かし表示＋タップ時ハイライト）
+      const halfW = LANE_X / 2;
+      if (gs.leftPressed) {
+        ctx.fillStyle = "rgba(251, 191, 36, 0.22)";
+        ctx.fillRect(16, 16, halfW - 16, H - 32);
+      }
+      if (gs.rightPressed) {
+        ctx.fillStyle = "rgba(251, 191, 36, 0.22)";
+        ctx.fillRect(halfW, 16, halfW, H - 32);
+      }
+
+      // 中央境界の薄い点線
+      ctx.save();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle =
+        chapter === 3 ? "rgba(254, 243, 199, 0.28)" : "rgba(120, 53, 15, 0.25)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(halfW, 330);
+      ctx.lineTo(halfW, H - 20);
+      ctx.stroke();
+      ctx.restore();
+
+      // 左右それぞれの半面に透かしガイド文字を表示
+      ctx.fillStyle =
+        chapter === 3 ? "rgba(254, 243, 199, 0.55)" : "rgba(120, 53, 15, 0.45)";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("◀ 左半分タップ", 82, 355);
+      ctx.fillText("右半分タップ ▶", 224, 355);
+
       // 雨漏り水たまり
       gs.puddles.forEach((p) => {
         ctx.fillStyle = "rgba(56, 189, 248, 0.42)";
@@ -955,7 +972,7 @@ export default function BinBallPage() {
         ctx.stroke();
       });
 
-      // 破れ穴ギミック（軌道変化トラップ）
+      // 破れ穴ギミック
       gs.holes.forEach((h) => {
         const spikes = 10;
         ctx.fillStyle = "#ffffff";
@@ -982,34 +999,6 @@ export default function BinBallPage() {
         ctx.fillText("🌀", h.x, h.y + 3);
       });
 
-      // 大型化した左右フリッパー操作ボタン領域（盤面下部いっぱいに配置）
-      const drawTouchPad = (
-        x: number,
-        y: number,
-        w: number,
-        h: number,
-        label: string,
-        pressed: boolean
-      ) => {
-        ctx.save();
-        ctx.fillStyle = pressed ? "#f59e0b" : "rgba(28, 25, 23, 0.92)";
-        ctx.strokeStyle = pressed ? "#fef08a" : "#fbbf24";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.roundRect(x, y + (pressed ? 3 : 0), w, h, 12);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = pressed ? "#1c1917" : "#fef08a";
-        ctx.font = "bold 14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(label, x + w / 2, y + h / 2 + 5 + (pressed ? 3 : 0));
-        ctx.restore();
-      };
-
-      drawTouchPad(16, 466, 134, 58, "◀ 左フリッパー", gs.leftPressed);
-      drawTouchPad(158, 466, 134, 58, "右フリッパー ▶", gs.rightPressed);
-
       // 外枠・レーン壁・右上カーブガイド
       ctx.strokeStyle = "#451a03";
       ctx.lineWidth = 8;
@@ -1027,10 +1016,10 @@ export default function BinBallPage() {
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(16, 375);
-      ctx.lineTo(86, 435);
-      ctx.moveTo(LANE_X, 375);
-      ctx.lineTo(226, 435);
+      ctx.moveTo(16, 405);
+      ctx.lineTo(86, 468);
+      ctx.moveTo(LANE_X, 405);
+      ctx.lineTo(226, 468);
       ctx.stroke();
 
       // バンパー描画
@@ -1109,28 +1098,28 @@ export default function BinBallPage() {
         ctx.stroke();
         ctx.restore();
       };
-      drawFlipper(88, 437, gs.leftFlipperAngle, false);
-      drawFlipper(224, 437, gs.rightFlipperAngle, true);
+      drawFlipper(88, 470, gs.leftFlipperAngle, false);
+      drawFlipper(224, 470, gs.rightFlipperAngle, true);
 
       // リアルな発射バネ
       const recoilOffset =
         gs.springRecoilAnim > 0
           ? Math.sin(gs.springRecoilAnim * Math.PI * 6) * 14 * gs.springRecoilAnim
           : 0;
-      const springTop = 456 + gs.plungerPower * 48 - recoilOffset;
+      const springTop = 462 + gs.plungerPower * 52 - recoilOffset;
 
       ctx.strokeStyle = "#64748b";
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(316, springTop);
-      ctx.lineTo(316, 526);
+      ctx.lineTo(316, 528);
       ctx.stroke();
 
       ctx.strokeStyle = "#dc2626";
       ctx.lineWidth = 3;
       ctx.beginPath();
       const coils = 7;
-      const springHeight = Math.max(8, 526 - springTop);
+      const springHeight = Math.max(8, 528 - springTop);
       for (let i = 0; i <= coils; i++) {
         const sy = springTop + (springHeight / coils) * i;
         const sx = i % 2 === 0 ? 304 : 328;
@@ -1149,7 +1138,7 @@ export default function BinBallPage() {
 
       if (gs.charging && gs.plungerPower > 0) {
         const gaugeH = 74;
-        const gaugeY = 420;
+        const gaugeY = 425;
         ctx.fillStyle = "rgba(28, 25, 23, 0.85)";
         ctx.beginPath();
         ctx.roundRect(280, gaugeY, 10, gaugeH, 4);
@@ -1171,12 +1160,12 @@ export default function BinBallPage() {
         const pulse = Math.sin(Date.now() / 180) * 3;
         ctx.fillStyle = "rgba(220, 38, 38, 0.94)";
         ctx.beginPath();
-        ctx.roundRect(230, 396 + pulse, 98, 28, 8);
+        ctx.roundRect(230, 404 + pulse, 98, 28, 8);
         ctx.fill();
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("↓ 引いて離す", 279, 414 + pulse);
+        ctx.fillText("↓ 引いて離す", 279, 422 + pulse);
       }
 
       // ビー玉描画
@@ -1213,19 +1202,39 @@ export default function BinBallPage() {
 
   const currentCfg = buildStageConfig(chapter, stage);
 
-  // --- プレイ中はスマホ画面いっぱいのフルスクリーン表示 ---
+  // --- プレイ中はスマホ画面いっぱいのフルスクリーン表示（はみ出しゼロ） ---
   if (phase === "playing") {
     return (
       <div className="playing-fullscreen">
         <div className="playing-hud">
           <span>{currentCfg.stageName}</span>
           <span style={{ color: "#fbbf24" }}>
-            {score} / {currentCfg.targetScore}pt
+            {score}/{currentCfg.targetScore}pt
           </span>
           <span>{"🔵".repeat(Math.max(0, ballsLeft))}</span>
           <span style={{ color: "#fb7185" }}>
             {isEndless ? "∞" : `${timeLeft}s`}
           </span>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                gameStateRef.current.stageFinished = true;
+                sfx.playClear();
+                handleStageClearSuccess();
+              }}
+              style={{
+                backgroundColor: "#e11d48",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "3px 6px",
+                fontSize: "10px",
+                fontWeight: 800,
+              }}
+            >
+              クリア
+            </button>
+          )}
           <button
             onClick={toggleMute}
             style={{
@@ -1233,8 +1242,8 @@ export default function BinBallPage() {
               color: "#fff",
               border: "none",
               borderRadius: "6px",
-              padding: "3px 7px",
-              fontSize: "11px",
+              padding: "3px 6px",
+              fontSize: "10px",
               fontWeight: 800,
             }}
           >
@@ -1246,45 +1255,21 @@ export default function BinBallPage() {
           <div
             style={{
               position: "fixed",
-              top: "46px",
+              top: "44px",
               left: "50%",
               transform: "translateX(-50%)",
               zIndex: 50,
               backgroundColor: "#e11d48",
               color: "#fff",
-              padding: "6px 14px",
+              padding: "5px 12px",
               borderRadius: "999px",
-              fontSize: "12px",
+              fontSize: "11px",
               fontWeight: 800,
               whiteSpace: "nowrap",
             }}
           >
             {toastMsg}
           </div>
-        )}
-
-        {isAdmin && (
-          <button
-            onClick={() => {
-              gameStateRef.current.stageFinished = true;
-              sfx.playClear();
-              handleStageClearSuccess();
-            }}
-            style={{
-              width: "100%",
-              padding: "5px",
-              marginTop: "4px",
-              backgroundColor: "#e11d48",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "11px",
-              fontWeight: 800,
-              flexShrink: 0,
-            }}
-          >
-            [管理者] このステージを強制クリア
-          </button>
         )}
 
         <div className="playing-canvas-box">
@@ -1302,7 +1287,7 @@ export default function BinBallPage() {
     );
   }
 
-  // --- タイトル・イントロ・リザルト画面（ゲーム機ベゼルUI） ---
+  // --- タイトル・イントロ・リザルト画面 ---
   return (
     <div className="page-wrap">
       <div className="console-bezel">
