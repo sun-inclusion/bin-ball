@@ -68,74 +68,94 @@ const CHAPTER_TITLES = [
   "第5章：逆転！成金御殿",
 ];
 
-function buildStageConfig(chapter: number, stage: number): StageConfig {
-  const idx = (chapter - 1) * 5 + (stage - 1);
-  const isSurvival = chapter >= 4;
-  const targetScore = 800 + idx * 350;
-  const timeLimit = isSurvival ? 25 + (stage - 1) * 3 : 60;
+// 安全地帯（発射出口・フリッパー真上）を除外した穴の候補スポット
+const SAFE_HOLE_CANDIDATES = [
+  { x: 54, y: 155 },
+  { x: 242, y: 165 },
+  { x: 52, y: 275 },
+  { x: 244, y: 275 },
+  { x: 105, y: 315 },
+  { x: 205, y: 315 },
+  { x: 155, y: 95 },
+];
 
+function generateRandomHoles(chapter: number, stage: number): ShojiHole[] {
+  // 章が進むと穴の数が1〜3個に増える（1章は常に1個）
+  const count = chapter === 1 ? 1 : chapter <= 3 ? 2 : 3;
+  const pool = [...SAFE_HOLE_CANDIDATES];
+  // Fisher-Yatesシャッフル
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const baseR = 13 + Math.min(4, stage * 0.6);
+  return pool.slice(0, count).map((pos, idx) => ({
+    x: pos.x + (Math.random() * 10 - 5),
+    y: pos.y + (Math.random() * 10 - 5),
+    r: baseR,
+    seed: 1.1 + idx * 1.7 + Math.random(),
+  }));
+}
+
+function generateStageBumpers(
+  chapter: number,
+  stage: number
+): Omit<Bumper, "hitAnim">[] {
   const bumpers: Omit<Bumper, "hitAnim">[] = [
     {
       id: "b1",
-      x: 112,
-      y: 128,
-      r: 22,
+      x: 108,
+      y: 132,
+      r: 23,
       type: chapter === 5 ? "koban" : "can",
-      points: chapter === 5 ? 300 : 120,
+      points: chapter === 5 ? 350 : 150,
     },
     {
       id: "b2",
-      x: 202,
-      y: 128,
-      r: 22,
+      x: 204,
+      y: 132,
+      r: 23,
       type: chapter === 5 ? "koban" : "can",
-      points: chapter === 5 ? 300 : 120,
+      points: chapter === 5 ? 350 : 150,
     },
     {
       id: "b3",
-      x: 157,
+      x: 156,
       y: 192,
-      r: 24,
+      r: 25,
       type: chapter === 5 ? "koban" : "chawan",
-      points: chapter === 5 ? 450 : 220,
+      points: chapter === 5 ? 500 : 250,
     },
   ];
 
   if (stage >= 2 || chapter >= 2) {
-    bumpers.push({ id: "b4", x: 78, y: 230, r: 18, type: "can", points: 150 });
-    bumpers.push({ id: "b5", x: 236, y: 230, r: 18, type: "can", points: 150 });
+    bumpers.push({ id: "b4", x: 82, y: 228, r: 19, type: "can", points: 180 });
+    bumpers.push({ id: "b5", x: 230, y: 228, r: 19, type: "can", points: 180 });
   }
+  return bumpers;
+}
 
-  const holes: ShojiHole[] = [];
-  if (chapter === 1) {
-    holes.push({ x: 157, y: 292, r: 15 + stage * 1.4, seed: 1.1 });
-    if (stage >= 4) holes.push({ x: 82, y: 172, r: 14, seed: 2.3 });
-  } else if (chapter === 2) {
-    holes.push({ x: 108, y: 282, r: 16, seed: 1.7 });
-    holes.push({ x: 206, y: 282, r: 16, seed: 3.1 });
-  } else if (chapter === 3) {
-    holes.push({ x: 157, y: 268, r: 17, seed: 2.5 });
-    holes.push({ x: 74, y: 312, r: 14, seed: 4.2 });
-  } else if (chapter === 4) {
-    holes.push({ x: 104, y: 272, r: 16, seed: 1.3 });
-    holes.push({ x: 210, y: 272, r: 16, seed: 2.9 });
-    holes.push({ x: 157, y: 326, r: 15, seed: 3.8 });
-  } else {
-    holes.push({ x: 94, y: 288, r: 17, seed: 2.1 });
-    holes.push({ x: 220, y: 288, r: 17, seed: 4.7 });
-  }
+function buildStageConfig(chapter: number, stage: number): StageConfig {
+  const idx = (chapter - 1) * 5 + (stage - 1);
+  const isSurvival = chapter >= 4;
+  // 遊びやすい目標スコアバランス（500ptスタート）
+  const targetScore = 500 + idx * 250;
+  const timeLimit = isSurvival ? 25 + (stage - 1) * 3 : 60;
+
+  const bumpers = generateStageBumpers(chapter, stage);
+  const holes = generateRandomHoles(chapter, stage);
 
   const puddles: Puddle[] = [];
   if (chapter === 2 || chapter === 4) {
-    puddles.push({ x: 157, y: 242, rx: 38, ry: 22 });
-    if (stage >= 3) puddles.push({ x: 98, y: 182, rx: 28, ry: 18 });
+    puddles.push({ x: 156, y: 246, rx: 36, ry: 20 });
+    if (stage >= 3) puddles.push({ x: 98, y: 182, rx: 26, ry: 16 });
   }
 
   const collectors: DebtCollector[] = [];
   if (chapter >= 3) {
     collectors.push({
       x: 128,
-      y: 238,
+      y: 242,
       w: 54,
       h: 16,
       vx: 1.1 + stage * 0.2 + (chapter - 3) * 0.3,
@@ -400,7 +420,6 @@ export default function BinBallPage() {
     []
   );
 
-  // 発射実行（引っ張りパワーに応じた初速メリハリ：弱12.2 〜 強20.3）
   const releasePlunger = useCallback(() => {
     const gs = gameStateRef.current;
     if (gs.ball.inLane && !gs.ball.active && gs.plungerPower > 0.12) {
@@ -628,7 +647,7 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.8;
           }
 
-          // 右上カーブガイド（\ 向き：左上(255,16) -> 右下(332,85) で左のメイン盤面へ跳ね返す）
+          // 右上カーブガイド（\ 向き）
           checkSlantWall(255, 16, 332, 85, 0.92);
 
           if (b.inLane) {
@@ -694,7 +713,10 @@ export default function BinBallPage() {
             }
           }
 
-          gs.bumpers.forEach((bmp) => {
+          // バンパー衝突判定（当たったターゲットは消滅＋全消しでボーナス補充）
+          let hitBumperIndex = -1;
+          for (let i = 0; i < gs.bumpers.length; i++) {
+            const bmp = gs.bumpers[i];
             if (bmp.hitAnim > 0) bmp.hitAnim -= 0.04;
             const dx = b.x - bmp.x;
             const dy = b.y - bmp.y;
@@ -707,28 +729,43 @@ export default function BinBallPage() {
               const bounceSpeed = bmp.type === "chawan" ? 6.8 : 5.8;
               b.vx = nx * bounceSpeed;
               b.vy = ny * bounceSpeed - 0.9;
-              bmp.hitAnim = 1;
 
               sfx.playBumper(bmp.type);
               gs.score += bmp.points;
-              setScore(gs.score);
-              if (gs.score > highScore) {
-                setHighScore(gs.score);
-                localStorage.setItem("binball_highscore", String(gs.score));
-              }
-
-              if (
-                !isEndless &&
-                !gs.stageFinished &&
-                gs.config.mode === "target" &&
-                gs.score >= gs.config.targetScore
-              ) {
-                gs.stageFinished = true;
-                sfx.playClear();
-                handleStageClearSuccess();
-              }
+              hitBumperIndex = i;
+              break;
             }
-          });
+          }
+
+          if (hitBumperIndex !== -1) {
+            gs.bumpers.splice(hitBumperIndex, 1);
+            // 全部消したらボーナス加算＆再補充
+            if (gs.bumpers.length === 0) {
+              gs.score += 500;
+              sfx.playClear();
+              showToast("🎉 全消しボーナス +500pt！");
+              gs.bumpers = generateStageBumpers(
+                gs.config.chapter,
+                gs.config.stage
+              ).map((item) => ({ ...item, hitAnim: 1 }));
+            }
+            setScore(gs.score);
+            if (gs.score > highScore) {
+              setHighScore(gs.score);
+              localStorage.setItem("binball_highscore", String(gs.score));
+            }
+
+            if (
+              !isEndless &&
+              !gs.stageFinished &&
+              gs.config.mode === "target" &&
+              gs.score >= gs.config.targetScore
+            ) {
+              gs.stageFinished = true;
+              sfx.playClear();
+              handleStageClearSuccess();
+            }
+          }
 
           gs.collectors.forEach((c) => {
             if (
@@ -753,7 +790,6 @@ export default function BinBallPage() {
             }
           });
 
-          // メイン盤面に出てからだけ速度上限を適用（レーン内は引っ張りパワー全開！）
           if (!b.inLane) {
             const maxSpd = 12.0;
             const curSpd = Math.hypot(b.vx, b.vy);
@@ -1043,7 +1079,7 @@ export default function BinBallPage() {
       drawFlipper(90, 417, gs.leftFlipperAngle, false);
       drawFlipper(222, 417, gs.rightFlipperAngle, true);
 
-      // リアルな発射バネ（金属コイル＋反動振動＋連動パワーゲージ）
+      // リアルな発射バネ
       const recoilOffset =
         gs.springRecoilAnim > 0
           ? Math.sin(gs.springRecoilAnim * Math.PI * 6) * 14 * gs.springRecoilAnim
