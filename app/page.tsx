@@ -306,7 +306,7 @@ const sfx = new SoundFX();
 // --- 定数 ---
 const W = 340;
 const H = 500;
-const LANE_X = 304;
+const LANE_X = 300;
 const BALL_R = 8.5;
 const GRAVITY = 0.24;
 
@@ -326,9 +326,14 @@ export default function BinBallPage() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // ポインターID別のタッチ管理（マルチタッチで左右フリッパー同時押し＆バネ引っ張り対応）
+  const activePointersRef = useRef<
+    Map<number, { role: "left" | "right" | "plunger"; startY: number }>
+  >(new Map());
+
   // ゲーム物理状態Ref
   const gameStateRef = useRef({
-    ball: { x: 320, y: 428, vx: 0, vy: 0, inLane: true, active: false },
+    ball: { x: 318, y: 422, vx: 0, vy: 0, inLane: true, active: false },
     plungerPower: 0,
     charging: false,
     leftFlipperAngle: 0.42,
@@ -369,11 +374,13 @@ export default function BinBallPage() {
       const cfg = buildStageConfig(ch, st);
       const gs = gameStateRef.current;
       gs.config = cfg;
-      gs.ball = { x: 320, y: 428, vx: 0, vy: 0, inLane: true, active: false };
+      gs.ball = { x: 318, y: 422, vx: 0, vy: 0, inLane: true, active: false };
       gs.plungerPower = 0;
       gs.charging = false;
       gs.leftFlipperAngle = 0.42;
       gs.rightFlipperAngle = -0.42;
+      gs.leftPressed = false;
+      gs.rightPressed = false;
       gs.bumpers = cfg.bumpers.map((b) => ({ ...b, hitAnim: 0 }));
       gs.holes = cfg.holes.map((h) => ({ ...h }));
       gs.puddles = cfg.puddles.map((p) => ({ ...p }));
@@ -382,6 +389,7 @@ export default function BinBallPage() {
       gs.ballsLeft = 3;
       gs.timeLeft = endlessMode ? 999 : cfg.timeLimit;
       gs.stageFinished = false;
+      activePointersRef.current.clear();
 
       setChapter(ch);
       setStage(st);
@@ -393,12 +401,12 @@ export default function BinBallPage() {
     []
   );
 
-  // 発射実行（上端のカーブガイドまで確実に届く初速を確保）
+  // 発射実行
   const releasePlunger = useCallback(() => {
     const gs = gameStateRef.current;
-    if (gs.ball.inLane && !gs.ball.active) {
-      const p = Math.max(0.45, gs.plungerPower);
-      gs.ball.vy = -(16.2 + p * 5.8);
+    if (gs.ball.inLane && !gs.ball.active && gs.plungerPower > 0.12) {
+      const p = Math.max(0.42, gs.plungerPower);
+      gs.ball.vy = -(16.2 + p * 6.0);
       gs.ball.vx = -0.2;
       gs.ball.active = true;
       sfx.playLaunch(p);
@@ -407,7 +415,93 @@ export default function BinBallPage() {
     gs.plungerPower = 0;
   }, []);
 
-  // キーボード操作
+  // 盤面直結ポインター操作（左右フリッパー＆引っ張りプランジャー）
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const syncFlipperPointerState = () => {
+    let hasLeft = false;
+    let hasRight = false;
+    activePointersRef.current.forEach((v) => {
+      if (v.role === "left") hasLeft = true;
+      if (v.role === "right") hasRight = true;
+    });
+    gameStateRef.current.leftPressed = hasLeft;
+    gameStateRef.current.rightPressed = hasRight;
+  };
+
+  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (phase !== "playing") return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const { x, y } = getCanvasCoords(e);
+    const gs = gameStateRef.current;
+
+    // 発射待機中で、右側の発射レーン付近（x >= 275 && y >= 330）を触ったらバネ引っ張りモード
+    if (gs.ball.inLane && !gs.ball.active && x >= 275 && y >= 330) {
+      activePointersRef.current.set(e.pointerId, {
+        role: "plunger",
+        startY: y,
+      });
+      gs.charging = true;
+      gs.plungerPower = 0.15;
+      return;
+    }
+
+    // それ以外は左半分で左フリッパー、右半分で右フリッパー
+    if (x < LANE_X / 2) {
+      activePointersRef.current.set(e.pointerId, { role: "left", startY: y });
+      if (!gs.leftPressed) sfx.playFlipper();
+    } else {
+      activePointersRef.current.set(e.pointerId, { role: "right", startY: y });
+      if (!gs.rightPressed) sfx.playFlipper();
+    }
+    syncFlipperPointerState();
+  };
+
+  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const info = activePointersRef.current.get(e.pointerId);
+    if (!info || info.role !== "plunger") return;
+    const { y } = getCanvasCoords(e);
+    const pullDist = Math.max(0, y - info.startY);
+    // 最大85px引っ張りで100%チャージ
+    const power = Math.min(1, Math.max(0.15, pullDist / 85));
+    gameStateRef.current.plungerPower = power;
+    // 引っ張り量に合わせて発射前の玉も一緒に下がる
+    if (
+      gameStateRef.current.ball.inLane &&
+      !gameStateRef.current.ball.active
+    ) {
+      gameStateRef.current.ball.y = 422 + power * 42;
+    }
+  };
+
+  const handleCanvasPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const info = activePointersRef.current.get(e.pointerId);
+    if (!info) return;
+    activePointersRef.current.delete(e.pointerId);
+
+    if (info.role === "plunger") {
+      releasePlunger();
+      // 引っ張りが浅くて発射キャンセルされた場合は玉位置を戻す
+      if (
+        gameStateRef.current.ball.inLane &&
+        !gameStateRef.current.ball.active
+      ) {
+        gameStateRef.current.ball.y = 422;
+      }
+    } else {
+      syncFlipperPointerState();
+    }
+  };
+
+  // PCキーボード操作も維持
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (phase !== "playing") return;
@@ -506,9 +600,15 @@ export default function BinBallPage() {
       const gs = gameStateRef.current;
       const b = gs.ball;
 
-      // 1. プランジャーチャージ
-      if (gs.charging && b.inLane && !b.active) {
+      // キーボード長押しチャージ時のパワー増加（タッチドラッグ時はpointerMove側で制御）
+      if (
+        gs.charging &&
+        b.inLane &&
+        !b.active &&
+        activePointersRef.current.size === 0
+      ) {
         gs.plungerPower = Math.min(1, gs.plungerPower + 0.03);
+        b.y = 422 + gs.plungerPower * 42;
       }
 
       // 2. フリッパー角度更新
@@ -576,8 +676,8 @@ export default function BinBallPage() {
             b.vy = Math.abs(b.vy) * 0.82;
           }
 
-          // 右上カーブガイド（発射レーンから左のメイン盤面へ滑らかに送り出す）
-          checkSlantWall(332, 22, 268, 72, 0.92);
+          // 右上カーブガイド
+          checkSlantWall(332, 22, 264, 72, 0.92);
 
           // 右側発射レーン制御（ワンウェイゲート仕様）
           if (b.inLane) {
@@ -589,12 +689,10 @@ export default function BinBallPage() {
               b.x = LANE_X + BALL_R;
               b.vx = Math.abs(b.vx) * 0.7;
             }
-            // 一度でもレーンを左へ抜けたら逆流防止ゲートを閉じる
             if (b.x < LANE_X - 8) {
               b.inLane = false;
             }
           } else {
-            // メイン盤面右壁（上から下まで完全に閉じる）
             if (b.x + BALL_R > LANE_X) {
               b.x = LANE_X - BALL_R;
               b.vx = -Math.abs(b.vx) * 0.82;
@@ -602,12 +700,12 @@ export default function BinBallPage() {
           }
 
           if (!b.inLane) {
-            // 斜めガイド壁（下部左右の三角ガイド）
-            checkSlantWall(16, 365, 92, 426, 0.9);
-            checkSlantWall(LANE_X, 365, 228, 426, 0.9);
+            // 斜めガイド壁
+            checkSlantWall(16, 365, 90, 426, 0.9);
+            checkSlantWall(LANE_X, 365, 226, 426, 0.9);
 
             // 左右フリッパー当たり判定
-            const lPivotX = 94;
+            const lPivotX = 92;
             const lPivotY = 428;
             const fLen = 52;
             const lx2 = lPivotX + Math.cos(gs.leftFlipperAngle) * fLen;
@@ -627,7 +725,7 @@ export default function BinBallPage() {
               b.vy = Math.min(b.vy, -8.5);
             }
 
-            const rPivotX = 226;
+            const rPivotX = 224;
             const rPivotY = 428;
             const rx2 = rPivotX - Math.cos(-gs.rightFlipperAngle) * fLen;
             const ry2 = rPivotY + Math.sin(-gs.rightFlipperAngle) * fLen;
@@ -743,8 +841,8 @@ export default function BinBallPage() {
             setPhase("game_over");
           } else {
             gs.ball = {
-              x: 320,
-              y: 428,
+              x: 318,
+              y: 422,
               vx: 0,
               vy: 0,
               inLane: true,
@@ -776,6 +874,27 @@ export default function BinBallPage() {
         ctx.lineTo(LANE_X, gy);
         ctx.stroke();
       }
+
+      // フリッパー操作エリアの視覚ガイド（左右フリッパーのすぐ下に直接表示）
+      ctx.fillStyle = gs.leftPressed
+        ? "rgba(217, 119, 6, 0.28)"
+        : "rgba(120, 53, 15, 0.12)";
+      ctx.beginPath();
+      ctx.roundRect(22, 438, 128, 44, 10);
+      ctx.fill();
+      ctx.fillStyle = gs.leftPressed ? "#92400e" : "rgba(120, 53, 15, 0.55)";
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("◀ TAP（左バー）", 86, 465);
+
+      ctx.fillStyle = gs.rightPressed
+        ? "rgba(217, 119, 6, 0.28)"
+        : "rgba(120, 53, 15, 0.12)";
+      ctx.beginPath();
+      ctx.roundRect(164, 438, 128, 44, 10);
+      ctx.fill();
+      ctx.fillStyle = gs.rightPressed ? "#92400e" : "rgba(120, 53, 15, 0.55)";
+      ctx.fillText("（右バー）TAP ▶", 228, 465);
 
       // 雨漏り水たまり
       gs.puddles.forEach((p) => {
@@ -822,15 +941,15 @@ export default function BinBallPage() {
       ctx.lineWidth = 6;
       ctx.beginPath();
       ctx.moveTo(332, 22);
-      ctx.lineTo(268, 72);
+      ctx.lineTo(264, 72);
       ctx.stroke();
 
       // 斜めガイド壁
       ctx.beginPath();
       ctx.moveTo(16, 365);
-      ctx.lineTo(92, 426);
+      ctx.lineTo(90, 426);
       ctx.moveTo(LANE_X, 365);
-      ctx.lineTo(228, 426);
+      ctx.lineTo(226, 426);
       ctx.stroke();
 
       // バンパー描画
@@ -909,13 +1028,42 @@ export default function BinBallPage() {
         ctx.stroke();
         ctx.restore();
       };
-      drawFlipper(94, 428, gs.leftFlipperAngle, false);
-      drawFlipper(226, 428, gs.rightFlipperAngle, true);
+      drawFlipper(92, 428, gs.leftFlipperAngle, false);
+      drawFlipper(224, 428, gs.rightFlipperAngle, true);
 
-      // 発射バネ（プランジャー）描画
-      const springTop = 438 + gs.plungerPower * 38;
-      ctx.fillStyle = "#dc2626";
-      ctx.fillRect(308, springTop, 28, 485 - springTop);
+      // 発射バネ（プランジャー：ギザギザバネ＋ノブ描画）
+      const springTop = 432 + gs.plungerPower * 42;
+      ctx.strokeStyle = "#dc2626";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      const coils = 5;
+      const springHeight = 486 - springTop;
+      for (let i = 0; i <= coils; i++) {
+        const sy = springTop + (springHeight / coils) * i;
+        const sx = i % 2 === 0 ? 307 : 329;
+        if (i === 0) ctx.moveTo(318, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+
+      // バネのつまみ（ノブ）
+      ctx.fillStyle = "#b91c1c";
+      ctx.beginPath();
+      ctx.roundRect(305, springTop - 4, 26, 10, 4);
+      ctx.fill();
+
+      // 発射待機中の視覚ガイド（「↓ 引いて離す」）
+      if (b.inLane && !b.active) {
+        const pulse = Math.sin(Date.now() / 180) * 3;
+        ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
+        ctx.beginPath();
+        ctx.roundRect(236, 378 + pulse, 96, 26, 8);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("↓ 引いて離す", 284, 395 + pulse);
+      }
 
       // パチンコ玉（ビー玉風）描画
       ctx.fillStyle = "#38bdf8";
@@ -1142,7 +1290,7 @@ export default function BinBallPage() {
           </div>
         )}
 
-        {/* --- ゲームプレイ画面 --- */}
+        {/* --- ゲームプレイ画面（盤面直結タッチ操作） --- */}
         {phase === "playing" && (
           <div className="w-full flex flex-col items-center space-y-2">
             <div className="w-full flex items-center justify-between bg-stone-800 px-3 py-1.5 rounded-xl border border-stone-700 text-xs">
@@ -1186,66 +1334,22 @@ export default function BinBallPage() {
               </button>
             )}
 
-            <div className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-amber-800">
+            <div className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-amber-800 touch-none">
               <canvas
                 ref={canvasRef}
                 width={W}
                 height={H}
-                className="block max-w-full h-auto"
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={handleCanvasPointerUp}
+                onPointerCancel={handleCanvasPointerUp}
+                className="block max-w-full h-auto touch-none cursor-pointer"
               />
             </div>
 
-            <div className="w-full grid grid-cols-3 gap-2 pt-1">
-              <button
-                onPointerDown={() => {
-                  gameStateRef.current.leftPressed = true;
-                  sfx.playFlipper();
-                }}
-                onPointerUp={() => {
-                  gameStateRef.current.leftPressed = false;
-                }}
-                onPointerLeave={() => {
-                  gameStateRef.current.leftPressed = false;
-                }}
-                className="py-4 rounded-xl bg-amber-600 active:bg-amber-400 text-white font-black text-sm shadow"
-              >
-                ◀ 左フリッパー
-              </button>
-
-              <button
-                onPointerDown={() => {
-                  if (
-                    gameStateRef.current.ball.inLane &&
-                    !gameStateRef.current.ball.active
-                  ) {
-                    gameStateRef.current.charging = true;
-                  }
-                }}
-                onPointerUp={releasePlunger}
-                onPointerLeave={() => {
-                  if (gameStateRef.current.charging) releasePlunger();
-                }}
-                className="py-4 rounded-xl bg-rose-600 active:bg-rose-400 text-white font-black text-sm shadow"
-              >
-                🔥 発射(長押し)
-              </button>
-
-              <button
-                onPointerDown={() => {
-                  gameStateRef.current.rightPressed = true;
-                  sfx.playFlipper();
-                }}
-                onPointerUp={() => {
-                  gameStateRef.current.rightPressed = false;
-                }}
-                onPointerLeave={() => {
-                  gameStateRef.current.rightPressed = false;
-                }}
-                className="py-4 rounded-xl bg-amber-600 active:bg-amber-400 text-white font-black text-sm shadow"
-              >
-                右フリッパー ▶
-              </button>
-            </div>
+            <p className="text-[11px] text-stone-400 text-center">
+              右下の赤いバネを下に引っ張って発射 ／ 盤面の左右タップでバー操作
+            </p>
           </div>
         )}
 
